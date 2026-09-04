@@ -9,7 +9,7 @@ Format: task attempted · steps · expected vs actual · severity · workaround 
 - **Expected:** Clear Amazon sample “simulated Alexa+” starter with voice chrome and session APIs.
 - **Actual:** Rules allow any agentic tool; little opinionated UI kit for the simulation path. Easy to accidentally ship a plain chatbot.
 - **Severity:** Important
-- **Workaround:** Labelled “Alexa+ simulation · not a live device”; MCP-like tool timeline; multi-step chips.
+- **Workaround:** Labelled “SIMULATION · NOT A LIVE ALEXA DEVICE”; Amazon-native tool timeline; multi-step chips.
 - **Suggestion:** Ship an official simulated-Alexa+ web scaffold (session memory + tool cards) on the hackathon resources page.
 
 ## 2. No TTS / voice in simulation
@@ -22,15 +22,15 @@ Format: task attempted · steps · expected vs actual · severity · workaround 
 - **Workaround:** Voice-adjacent chrome + explicit simulation badge; spoken narration in the video.
 - **Suggestion:** Provide a muted “Alexa speaking” caption pattern in the sample app.
 
-## 3. Mock ITSM / Azure / GreenLake
+## 3. Mock Ring / Orders / Fire TV
 
-- **Task:** Show hybrid correlation without tenant credentials.
-- **Steps:** Invent realistic SA North + JHB-DC-A seed data.
-- **Expected:** Public sandbox APIs for Monitor alerts + a GreenLake-like event feed for hackathons.
+- **Task:** Show household correlation without live device credentials.
+- **Steps:** Invent realistic Ring package + Amazon same-day ETA (and Fire TV bedtime) seed data in SAST.
+- **Expected:** Public sandbox APIs for Ring events + order ETA for hackathons.
 - **Actual:** No free public sandbox that fits an 8h build; all mocked client-side.
 - **Severity:** Important
-- **Workaround:** Explicit “mocked” footer and tool names that mirror real domains.
-- **Suggestion:** Publish read-only sample JSON packs for Azure Service Health + on-prem uplink events.
+- **Workaround:** Explicit “mocked” footer and tool names that mirror Amazon-native domains.
+- **Suggestion:** Publish read-only sample JSON packs for Ring package events + Amazon delivery ETA + Fire TV session state.
 
 ## 4. Devpost join while account flagged
 

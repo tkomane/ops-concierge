@@ -3,55 +3,127 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ops Concierge — Alexa+ simulation</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; script-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'none'" />
+  <meta name="description" content="Ops Concierge — Alexa+ simulation for Amazon household orchestration (doorstep delivery + evening routines). Amazon Developer Hackathon 2026." />
+  <meta name="theme-color" content="#0B0D10" />
+  <title>Ops Concierge — Alexa+ Household Concierge</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preload" href="css/app.css" as="style" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/app.css" />
 </head>
 <body>
+  <div class="starfield" aria-hidden="true"></div>
+  <div class="grid-overlay" aria-hidden="true"></div>
+
   <div class="app">
-    <header class="banner">
-      <div class="brand">
-        <div class="orb" id="orb" aria-hidden="true"></div>
-        <div>
-          <h1>Ops Concierge</h1>
-          <div class="sub">Hybrid estate · voice-adjacent · session stateful</div>
-        </div>
-        <span class="sim-tag">Alexa+ simulation · not a live device</span>
+    <header class="topbar" role="banner">
+      <div class="topbar-left">
+        <a class="mark" href="./" aria-label="Ops Concierge home">
+          <svg class="mark-icon" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
+            <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.35"/>
+            <circle cx="16" cy="16" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <circle cx="16" cy="16" r="2.5" fill="currentColor"/>
+          </svg>
+          <div class="mark-text">
+            <span class="mark-name">OPS CONCIERGE</span>
+            <span class="mark-sub">ALEXA+ · HOUSEHOLD</span>
+          </div>
+        </a>
       </div>
-      <div class="actions">
-        <button type="button" class="primary" id="demoBtn">Run demo incident</button>
-        <button type="button" class="ghost" id="demoBtn2">Run backup incident</button>
+
+      <div class="topbar-center">
+        <div class="meta-block">
+          <span class="meta-label">HOUSEHOLD CLOCK</span>
+          <time class="meta-value mono" id="missionClock" datetime="">--:--:-- SAST</time>
+        </div>
+        <div class="meta-divider" aria-hidden="true"></div>
+        <div class="meta-block">
+          <span class="meta-label">SESSION</span>
+          <span class="meta-value mono" id="sessionId">sess—idle</span>
+        </div>
+        <div class="meta-divider" aria-hidden="true"></div>
+        <div class="meta-block">
+          <span class="meta-label">PHASE</span>
+          <span class="phase-pill" id="phasePill" data-phase="idle">IDLE</span>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <span class="sim-badge" title="Offline mock — not connected to Alexa hardware">SIMULATION · NOT A LIVE ALEXA DEVICE</span>
+        <button type="button" class="btn btn-ghost" id="demoBtn2" title="Fire TV bedtime routine">Bedtime</button>
+        <button type="button" class="btn btn-primary" id="demoBtn" title="Doorstep delivery (D)">Run demo</button>
+        <button type="button" class="btn btn-icon" id="helpBtn" aria-label="Keyboard shortcuts" title="Shortcuts (?)">?</button>
       </div>
     </header>
 
-    <main class="main">
-      <section class="panel" aria-label="Conversation">
-        <h2>Voice &amp; chat · Alexa+ sim</h2>
-        <div class="chat" id="chat"></div>
-        <p class="voice-hint">Type as if speaking to Alexa+. Chips are suggested utterances. State is kept across turns.</p>
-        <div class="chips" id="chips"></div>
-        <div class="composer">
-          <input id="utter" type="text" autocomplete="off" placeholder="Say something… e.g. acknowledge both alerts" />
-          <button type="button" class="primary" id="sendBtn">Send</button>
+    <main class="mission-grid" id="main">
+      <section class="panel panel-voice" aria-label="Voice and chat">
+        <header class="panel-head">
+          <h2 class="panel-title">VOICE / CHAT</h2>
+          <span class="panel-tag mono" id="orb" data-state="idle">ALEXA+ SIM</span>
+        </header>
+        <div class="chat" id="chat" role="log" aria-live="polite" aria-relevant="additions"></div>
+        <div class="voice-foot">
+          <p class="voice-hint">Utterances drive session state. Chips = suggested commands. <kbd>1</kbd>–<kbd>4</kbd> · <kbd>Enter</kbd> · <kbd>D</kbd> demo</p>
+          <div class="chips" id="chips" role="group" aria-label="Suggested utterances"></div>
+          <div class="composer">
+            <label class="sr-only" for="utter">Command input</label>
+            <input id="utter" type="text" autocomplete="off" spellcheck="false"
+              placeholder="Ask Alexa+… e.g. acknowledge both signals" />
+            <button type="button" class="btn btn-primary" id="sendBtn">Send</button>
+          </div>
         </div>
       </section>
 
-      <section class="panel" aria-label="Incident cards">
-        <h2>Incident board</h2>
+      <section class="panel panel-board" aria-label="Household board">
+        <header class="panel-head">
+          <h2 class="panel-title">HOUSEHOLD BOARD</h2>
+          <span class="panel-tag mono" id="boardTag">STANDBY</span>
+        </header>
         <div class="cards" id="cards"></div>
       </section>
 
-      <section class="panel" aria-label="Agent workflow">
-        <h2>Agent workflow · MCP-like tools</h2>
-        <div class="timeline" id="timeline"></div>
-        <div class="session" id="sessionBox">Session — idle</div>
+      <section class="panel panel-telemetry" aria-label="Tools timeline">
+        <header class="panel-head">
+          <h2 class="panel-title">TOOLS</h2>
+          <span class="panel-tag mono" id="toolCount">0 EVENTS</span>
+        </header>
+        <div class="timeline" id="timeline" role="log" aria-live="polite" aria-relevant="additions"></div>
+        <div class="session-strip" id="sessionBox">
+          <span class="mono">SESSION IDLE</span>
+          <span class="muted">No tools fired</span>
+        </div>
       </section>
     </main>
 
-    <footer class="footer">
+    <footer class="footer" role="contentinfo">
       <span>Amazon Developer Hackathon 2026 · Alexa+ simulated path (rules §4) · offline mock</span>
-      <span>Tshiamo Komane · Africa/Johannesburg</span>
+      <span class="mono">Tshiamo Komane · Africa/Johannesburg</span>
     </footer>
   </div>
+
+  <div class="overlay" id="shortcutsOverlay" hidden>
+    <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="shortcutsTitle">
+      <header class="overlay-head">
+        <h2 id="shortcutsTitle">KEYBOARD</h2>
+        <button type="button" class="btn btn-ghost" id="closeShortcuts" aria-label="Close">Esc</button>
+      </header>
+      <dl class="shortcut-list">
+        <div><dt><kbd>Enter</kbd></dt><dd>Send utterance</dd></div>
+        <div><dt><kbd>1</kbd>–<kbd>4</kbd></dt><dd>Trigger visible chips</dd></div>
+        <div><dt><kbd>D</kbd></dt><dd>Run doorstep delivery demo</dd></div>
+        <div><dt><kbd>?</kbd></dt><dd>Toggle this overlay</dd></div>
+        <div><dt><kbd>Esc</kbd></dt><dd>Close overlay</dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
   <script src="js/scenarios.js"></script>
   <script src="js/app.js"></script>
 </body>
