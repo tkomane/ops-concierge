@@ -815,9 +815,17 @@
     opts = opts || {};
     const i = pushTool(name, "running", meta);
     await sleep(420 + Math.random() * 280);
-    const opId = nextOpId(name);
+    const opId = opts.operationId || nextOpId(name);
 
-    if (state.forceToolFail || (typeof window !== "undefined" && window.__OPS_FORCE_TOOL_FAIL)) {
+    const failOnceMap =
+      typeof window !== "undefined" && window.__OPS_FAIL_ONCE && typeof window.__OPS_FAIL_ONCE === "object"
+        ? window.__OPS_FAIL_ONCE
+        : null;
+    const failOnce = !!(failOnceMap && failOnceMap[name]);
+    if (failOnce) {
+      delete failOnceMap[name];
+    }
+    if (state.forceToolFail || (typeof window !== "undefined" && window.__OPS_FORCE_TOOL_FAIL) || failOnce) {
       const fail = {
         ok: false,
         source: "mock",
@@ -847,7 +855,8 @@
             outcome: null,
             error: live.error || { code: live.failureKind || "bridge_failure", message: "Bridge mutation failed" },
             meta: (live.meta || "bridge failure") + " · no mock fallback",
-            failureKind: live.failureKind || (live.error && live.error.code) || "bridge_failure"
+            failureKind: live.failureKind || (live.error && live.error.code) || "bridge_failure",
+            attempted: true
           };
           updateTool(i, "err", fail.meta);
           state.lastResults.push(fail);
@@ -1051,7 +1060,15 @@
     const kind = isGuest
       ? "SIMULATED HANDOFF PLAN (sample reference — not a gate credential)"
       : "HOUSEHOLD TASK (simulated)";
-    const status = plan ? plan.status : (uiPhase(state.phase) === "ticketed" ? "confirmed" : "draft");
+    const approvalStatus = plan ? plan.status : (uiPhase(state.phase) === "ticketed" ? "confirmed" : "draft");
+    /* Artefact/execution status from tool outcome — never force confirmed from approval alone. */
+    const artefactStatus =
+      plan && plan.artefactStatus
+        ? plan.artefactStatus
+        : plan && plan.status && plan.status !== "confirmed"
+          ? plan.status
+          : "draft";
+    const status = artefactStatus;
     const recipient = plan && plan.recipient
       ? plan.recipient.name + " (" + (plan.recipient.role || "") + ")"
       : "(see plan)";
@@ -1065,11 +1082,12 @@
     const observations = plan && plan.observations && plan.observations.length
       ? plan.observations.map(function (a) { return "  - " + a; }).join("\n")
       : "  - " + s.primary.title;
-    return [
+    const lines = [
       kind,
       `Sample ref:  ${s.ticket.id}`,
       `Title:       ${s.ticket.title}`,
       `Status:      ${status}`,
+      `Approval:    ${approvalStatus}`,
       `Recipient:   ${recipient}`,
       `Action:      ${action}`,
       `Timing:      ${timing}`,
@@ -1086,12 +1104,17 @@
       `Opened by Ops Concierge (Alexa+ simulation) session ${state.sessionId}`,
       `Household: Tshiamo Komane — Africa/Johannesburg`,
       `Note:       Sample reference only — not an unlock / door credential`
-    ].join("\n");
+    ];
+    return lines.join("\n");
   }
 
   function proposalCardHtml(plan) {
     if (!plan) return "";
-    const status = plan.status || "draft";
+    const approvalStatus = plan.status || "draft";
+    const artefactStatus = plan.artefactStatus || null;
+    const statusLabel = artefactStatus
+      ? approvalStatus + " · artefact " + artefactStatus
+      : approvalStatus;
     const recip = plan.recipient
       ? escapeHtml(plan.recipient.name) + " · " + escapeHtml(plan.recipient.role || "")
       : "—";
@@ -1107,10 +1130,13 @@
     const sample = plan.sampleRef
       ? `<dt>Sample ref</dt><dd class="sample-ref muted">${escapeHtml(plan.sampleRef)} · not a gate credential</dd>`
       : "";
+    const artefactRow = artefactStatus
+      ? `<dt>Artefact</dt><dd><strong>${escapeHtml(artefactStatus)}</strong></dd>`
+      : "";
     return (
       `<div class="card sev-warn proposal-card enter-stagger" id="proposalCard">` +
       `<div class="card-inner">` +
-      `<p class="proposal-badge">Handoff proposal · ${escapeHtml(status)}</p>` +
+      `<p class="proposal-badge">Handoff proposal · ${escapeHtml(statusLabel)}</p>` +
       `<div class="card-title-row"><span class="card-ic" aria-hidden="true">${ICONS.home}</span>` +
       `<h3>Next decision</h3></div>` +
       `<p class="card-note">${escapeHtml(plan.explanation || "Proposed plan from tool results.")}</p>` +
@@ -1118,7 +1144,8 @@
       `<dt>Recipient</dt><dd><strong>${recip}</strong></dd>` +
       `<dt>Action</dt><dd><strong>${escapeHtml(plan.action || "")}</strong></dd>` +
       `<dt>Timing</dt><dd><strong>${timing}</strong></dd>` +
-      `<dt>Status</dt><dd><strong>${escapeHtml(status)}</strong></dd>` +
+      `<dt>Approval</dt><dd><strong>${escapeHtml(approvalStatus)}</strong></dd>` +
+      artefactRow +
       sample +
       `</dl>` +
       (obs ? `<details class="proposal-details"><summary>Observations</summary><ul>${obs}</ul></details>` : "") +
@@ -1685,7 +1712,7 @@
   async function handleAskInfo(utterance) {
     pushMsg("user", utterance);
     const q = String(utterance || "").toLowerCase();
-    if (/available|whether|only if|confirm if|confirm whether/.test(q)) {
+    if (/available|whether|only if|confirm if|confirm whether|\bif\b|\bafter\b|\bwhen\b|go ahead if|do it after/.test(q)) {
       pushMsg(
         "agent",
         "That’s an information check, not approval — I won’t notify anyone or open a card. " +
@@ -1883,78 +1910,162 @@
     state.phase = "approved";
     setThinking(true);
 
-    /* Distinct draft → queued → (status from tool outcome) */
-    pushMsg("agent", "Approval recorded. Queuing a simulated household nudge, then opening the handoff card…");
-    if (state.proposal) {
-      state.proposal = Object.assign({}, state.proposal, { status: "queued" });
-      state.queuedNotify = true;
-      renderCards();
-    }
+    let progress = store && store.getOperationProgress ? store.getOperationProgress(planId) : {};
+    const notifyDone = !!(progress.notify && progress.notify.status === "done");
+    const taskDone = !!(progress.task && progress.task.status === "done");
 
-    const notify = await runTool("notify.household", "Queue a household nudge", async () => ({
-      meta: "notify queued · sim",
-      observations: { summary: "notify queued" },
-      outcome: { queued: true }
-    }), { requireBridge: false });
-
-    if (!notify.ok) {
-      setThinking(false);
-      state.phase = "failed";
-      if (store) store.markFailed(notify.error);
-      if (state.proposal) state.proposal = Object.assign({}, state.proposal, { status: "draft" });
+    let notify = null;
+    if (!notifyDone) {
       pushMsg(
         "agent",
-        "Action failed — no false success. Source: " +
-          (notify.source || "unknown") +
-          ". " +
-          ((notify.error && notify.error.message) || "Tool error") +
-          " Recovery: fix the helper link, retry approval, or decline. Notification was not mocked as success."
+        "Approval recorded. Queuing a simulated household nudge, then opening the handoff card…"
       );
-      setChips(proposalChips());
-      renderCards();
-      syncChrome();
-      syncSessionMessagesTools();
-      persistDemo();
-      return;
-    }
-    if (store) store.bumpAction("notify");
+      if (state.proposal) {
+        state.proposal = Object.assign({}, state.proposal, { status: "queued" });
+        state.queuedNotify = true;
+        renderCards();
+      }
+      const notifyOpId =
+        (progress.notify && progress.notify.operationId) || nextOpId("notify.household");
+      if (store && store.setOperationProgress) {
+        store.setOperationProgress(planId, "notify", {
+          status: "pending",
+          operationId: notifyOpId
+        });
+      }
+      notify = await runTool(
+        "notify.household",
+        "Queue a household nudge",
+        async () => ({
+          meta: "notify queued · sim",
+          observations: { summary: "notify queued" },
+          outcome: { queued: true }
+        }),
+        { requireBridge: false, operationId: notifyOpId }
+      );
 
-    const opened = await runTool("task.open", "Draft handoff card (local)", async () => ({
-      meta: state.scenario.ticket.id + " draft",
-      observations: { summary: "handoff card opened" },
-      outcome: { id: state.scenario.ticket.id, status: "draft" }
-    }), { requireBridge: false });
-
-    if (!opened.ok) {
-      setThinking(false);
-      state.phase = "failed";
-      if (store) store.markFailed(opened.error);
+      if (!notify.ok) {
+        setThinking(false);
+        state.phase = "failed";
+        if (store) {
+          store.markFailed(notify.error);
+          if (store.setOperationProgress) {
+            store.setOperationProgress(planId, "notify", {
+              status: "failed",
+              operationId: notifyOpId
+            });
+          }
+        }
+        if (state.proposal) state.proposal = Object.assign({}, state.proposal, { status: "draft" });
+        pushMsg(
+          "agent",
+          "Action failed — no false success. Source: " +
+            (notify.source || "unknown") +
+            ". " +
+            ((notify.error && notify.error.message) || "Tool error") +
+            " Recovery: fix the helper link, retry approval, or decline. Notification was not mocked as success."
+        );
+        setChips(proposalChips());
+        renderCards();
+        syncChrome();
+        syncSessionMessagesTools();
+        persistDemo();
+        return;
+      }
+      if (store) {
+        store.bumpAction("notify");
+        if (store.setOperationProgress) {
+          store.setOperationProgress(planId, "notify", {
+            status: "done",
+            operationId: notify.operationId || notifyOpId
+          });
+        }
+      }
+      progress = store && store.getOperationProgress ? store.getOperationProgress(planId) : progress;
+    } else {
+      notify = {
+        ok: true,
+        source: "resumed",
+        operationId: progress.notify && progress.notify.operationId,
+        meta: "notify already queued · resumed"
+      };
       pushMsg(
         "agent",
-        "Handoff card could not be opened — no false success. Source: " +
-          (opened.source || "unknown") +
-          ". " +
-          ((opened.error && opened.error.message) || "Tool error") +
-          " Notification already queued once; retry will not re-send unless you reset."
+        "Notification already queued for this plan — resuming unfinished card open (no re-send)."
       );
-      setChips(proposalChips());
-      renderCards();
-      syncChrome();
-      syncSessionMessagesTools();
-      persistDemo();
-      return;
     }
-    if (store) store.bumpAction("task");
+
+    let opened = null;
+    if (!taskDone) {
+      const taskOpId = (progress.task && progress.task.operationId) || nextOpId("task.open");
+      if (store && store.setOperationProgress) {
+        store.setOperationProgress(planId, "task", {
+          status: "pending",
+          operationId: taskOpId
+        });
+      }
+      opened = await runTool(
+        "task.open",
+        "Draft handoff card (local)",
+        async () => ({
+          meta: state.scenario.ticket.id + " draft",
+          observations: { summary: "handoff card opened", status: "draft" },
+          outcome: { id: state.scenario.ticket.id, status: "draft" }
+        }),
+        { requireBridge: false, operationId: taskOpId }
+      );
+
+      if (!opened.ok) {
+        setThinking(false);
+        state.phase = "failed";
+        if (store) {
+          store.markFailed(opened.error);
+          if (store.setOperationProgress) {
+            store.setOperationProgress(planId, "task", {
+              status: "failed",
+              operationId: taskOpId
+            });
+          }
+        }
+        pushMsg(
+          "agent",
+          "Handoff card could not be opened — no false success. Source: " +
+            (opened.source || "unknown") +
+            ". " +
+            ((opened.error && opened.error.message) || "Tool error") +
+            " Notification already queued once; retry will not re-send unless you reset."
+        );
+        setChips(proposalChips());
+        renderCards();
+        syncChrome();
+        syncSessionMessagesTools();
+        persistDemo();
+        return;
+      }
+      if (store) {
+        store.bumpAction("task");
+        if (store.setOperationProgress) {
+          store.setOperationProgress(planId, "task", {
+            status: "done",
+            operationId: opened.operationId || taskOpId
+          });
+        }
+      }
+    } else {
+      opened = {
+        ok: true,
+        source: "resumed",
+        outcome: { id: state.scenario.ticket.id, status: (state.proposal && state.proposal.artefactStatus) || "draft" },
+        observations: { status: (state.proposal && state.proposal.artefactStatus) || "draft" }
+      };
+    }
 
     const outcomeStatus =
       (opened.outcome && opened.outcome.status) ||
       (opened.observations && opened.observations.status) ||
       "draft";
-    /* Report only the status supported by the actual tool result (backend may stay draft). */
-    const reportedStatus = outcomeStatus === "confirmed" ? "confirmed" : outcomeStatus;
     if (state.proposal) {
-      state.proposal = Object.assign({}, state.proposal, { status: reportedStatus === "draft" ? "confirmed" : reportedStatus });
-      /* Plan lifecycle can be confirmed locally after successful open; artefact status stays outcomeStatus */
+      /* Approval/lifecycle confirmed; artefact status stays the tool outcome. */
       state.proposal = Object.assign({}, state.proposal, {
         status: "confirmed",
         artefactStatus: outcomeStatus
@@ -1969,10 +2080,12 @@
       "Handoff for " +
         (state.proposal.recipient && state.proposal.recipient.name) +
         " recorded. Notification source: " +
-        (notify.source || "mock") +
+        (notify && notify.source ? notify.source : "mock") +
         ". Card/tool status from backend: " +
         outcomeStatus +
-        " (plan marked confirmed after successful open). Sample ref " +
+        " (approval confirmed; artefact status remains " +
+        outcomeStatus +
+        "). Sample ref " +
         state.scenario.ticket.id +
         " is ready to copy — it is not a gate credential."
     );
@@ -2566,6 +2679,12 @@
   window.__OPS_STORE = store;
   window.__OPS_GET_STATE = function () { return state; };
   window.__OPS_SET_FORCE_FAIL = function (v) { state.forceToolFail = !!v; };
+  window.__OPS_SET_FAIL_ONCE = function (toolName) {
+    if (!window.__OPS_FAIL_ONCE || typeof window.__OPS_FAIL_ONCE !== "object") {
+      window.__OPS_FAIL_ONCE = {};
+    }
+    if (toolName) window.__OPS_FAIL_ONCE[toolName] = true;
+  };
 
   document.addEventListener("DOMContentLoaded", bind);
 })();

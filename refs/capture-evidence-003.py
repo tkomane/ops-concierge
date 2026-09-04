@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture adaptive-flow evidence: visible outcomes + action counts (corrections 003)."""
+"""Capture adaptive-flow evidence: visible outcomes + action counts (NEXT corrections 003)."""
 import asyncio
 from pathlib import Path
 from playwright.async_api import async_playwright
@@ -57,13 +57,19 @@ async def action_counts(page):
           const task = tools.filter(t => t.name === 'task.open' && t.status === 'ok').length;
           const notifyErr = tools.filter(t => t.name === 'notify.household' && t.status === 'err').length;
           const taskErr = tools.filter(t => t.name === 'task.open' && t.status === 'err').length;
-          return { notifyOk: notify, taskOk: task, notifyErr, taskErr, phase: s.phase,
+          const notifyAll = tools.filter(t => t.name === 'notify.household').length;
+          const taskAll = tools.filter(t => t.name === 'task.open').length;
+          return { notifyOk: notify, taskOk: task, notifyErr, taskErr, notifyAll, taskAll,
+            phase: s.phase,
             recipient: s.proposal && s.proposal.recipient && s.proposal.recipient.name,
             planId: s.proposal && s.proposal.planId,
             status: s.proposal && s.proposal.status,
+            artefactStatus: s.proposal && s.proposal.artefactStatus,
             scenarioId: s.scenarioId,
             msgCount: (s.messages || []).length,
-            toolCount: tools.length };
+            toolCount: tools.length,
+            action: s.proposal && s.proposal.action,
+            needsClarification: !!(s.proposal && s.proposal.needsClarification) };
         }"""
     )
 
@@ -151,6 +157,26 @@ async def main():
         assert after_q["taskOk"] == before_ap["taskOk"]
         notes.append("Confirm whether… did not execute actions")
 
+        # Conditional consent — bound by entire utterance (NEXT)
+        for phrase in (
+            "Go ahead if Mira confirms",
+            "Go ahead if the parcel is ours",
+            "Do it after Mira confirms",
+            "Yes, approve if Mira is available",
+            f"Approve {plan_new} when Mira confirms",
+        ):
+            before_c = await action_counts(page)
+            await say(page, phrase)
+            await wait_idle(page)
+            after_c = await action_counts(page)
+            assert after_c["notifyOk"] == before_c["notifyOk"], phrase
+            assert after_c["taskOk"] == before_c["taskOk"], phrase
+            assert after_c["notifyAll"] == before_c["notifyAll"], phrase
+            assert after_c["taskAll"] == before_c["taskAll"], phrase
+            print("conditional blocked:", phrase)
+        notes.append("conditional consent phrases executed zero actions")
+        await shot(page, "03c-conditional-consent.png")
+
         # Current-plan explicit approval executes once
         await say(page, f"Approve {plan_new}")
         await wait_idle(page)
@@ -159,6 +185,14 @@ async def main():
         print("after approve:", st3)
         assert st3["phase"] == "acted"
         assert st3["notifyOk"] >= 1 and st3["taskOk"] >= 1
+        assert st3["artefactStatus"] == "draft", "artefact must remain draft from tool outcome"
+        assert st3["status"] == "confirmed", "approval lifecycle confirmed"
+        ticket = await page.inner_text("#ticketBody")
+        assert "Status:      draft" in ticket or "Status:\tdraft" in ticket or "Status: draft" in ticket.replace("  ", " ")
+        # tolerate spaced Status line
+        assert "draft" in ticket.split("Status:")[1].splitlines()[0]
+        assert "Approval:" in ticket and "confirmed" in ticket
+        notes.append("artifact Status=draft distinct from Approval=confirmed")
         notify_after_first = st3["notifyOk"]
         task_after_first = st3["taskOk"]
         await shot(page, "04-approve.png")
@@ -216,6 +250,38 @@ async def main():
         notes.append("Bedtime Mira unavailable changed recipient")
         await shot(page, "03b-bedtime-mira-unavail.png")
 
+        # Partial retry: notify ok, task fail once, retry only unfinished (NEXT)
+        await page.evaluate("() => { try { localStorage.removeItem('ops-demo-v1'); } catch(e){} }")
+        await page.reload(wait_until="networkidle")
+        await dismiss_coach(page)
+        await page.click("#demoBtn")
+        await wait_idle(page)
+        await page.evaluate("() => { window.__OPS_SET_FAIL_ONCE('task.open'); }")
+        await say(page, "approve")
+        await wait_idle(page)
+        st_partial = await action_counts(page)
+        print("after partial fail:", st_partial)
+        assert st_partial["phase"] == "failed"
+        assert st_partial["notifyOk"] == 1
+        assert st_partial["taskOk"] == 0
+        assert st_partial["taskErr"] >= 1
+        notify_partial = st_partial["notifyOk"]
+        task_all_before_retry = st_partial["taskAll"]
+        await say(page, "approve")
+        await wait_idle(page)
+        st_resume = await action_counts(page)
+        print("after partial resume:", st_resume)
+        assert st_resume["phase"] == "acted"
+        assert st_resume["notifyOk"] == notify_partial, "must not duplicate notify"
+        assert st_resume["taskOk"] == 1
+        assert st_resume["notifyAll"] == notify_partial, "no extra notify attempts"
+        assert st_resume["taskAll"] == task_all_before_retry + 1, "only one additional task attempt"
+        notes.append(
+            f"partial retry call counts notifyOk={st_resume['notifyOk']} taskOk={st_resume['taskOk']} "
+            f"notifyAll={st_resume['notifyAll']} taskAll={st_resume['taskAll']}"
+        )
+        await shot(page, "05b-partial-retry.png")
+
         # Failure inject (force-fail hook — still assert no false success)
         await page.evaluate("() => { try { localStorage.removeItem('ops-demo-v1'); } catch(e){} }")
         await page.reload(wait_until="networkidle")
@@ -231,6 +297,35 @@ async def main():
         chat3 = await page.inner_text("#chat")
         assert "false success" in chat3.lower() or "no false success" in chat3.lower() or "Action failed" in chat3
         await shot(page, "05-failure.png")
+
+        # Evidence gates via planner in-page (NEXT)
+        gates = await page.evaluate(
+            """() => {
+              const okRead = (tool, observations) => ({ok:true, source:'mock', tool, observations, outcome:{}, error:null});
+              const cases = {
+                no_results: [],
+                false_event_no_order: [okRead('ring.query', {motion:false, parcelVisual:false})],
+                order_failed: [okRead('ring.query', {motion:true, parcelVisual:true}), {ok:false, tool:'order.lookup', error:{code:'unavailable'}}],
+                all_bedtime_reads_failed: [{ok:false, tool:'ring.query', error:{code:'unavailable'}}, {ok:false, tool:'order.lookup', error:{code:'unavailable'}}]
+              };
+              const out = {};
+              for (const [name, results] of Object.entries(cases)) {
+                const storyId = name.startsWith('all_bedtime') ? 'bedtime' : 'doorstep';
+                const p = window.OpsPlanner.buildProposal({storyId, results});
+                const s = window.OpsState.createStore();
+                s.startStory(storyId);
+                s.setProposal(p);
+                out[name] = { action: p.action, needsClarification: !!p.needsClarification, approve: s.approve(p.planId) };
+              }
+              return out;
+            }"""
+        )
+        print("evidence gates:", gates)
+        for name, g in gates.items():
+            assert g["needsClarification"] is True, name
+            assert g["action"] == "ask_clarification", name
+            assert g["approve"]["ok"] is False, name
+        notes.append("evidence gates: empty/negative/failed doorstep + failed bedtime non-approvable")
 
         # Mobile + sim badge visibility
         page2 = await browser.new_page(viewport=MOBILE)

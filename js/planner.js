@@ -214,6 +214,47 @@
     return evidenceAssessment(results).canClaimVisitorIdentity;
   }
 
+  /**
+   * Minimum usable evidence for Doorstep: positive door signal + successful order read.
+   * Empty, negative, unknown, or failed required inputs are not approvable.
+   */
+  function hasDoorstepMinimumEvidence(evidence, results) {
+    var list = collectResults(results);
+    if (!list.length) return false;
+    if (!evidence || evidence.allReadsFailed) return false;
+    if (!evidence.hasRingMotion && !evidence.hasParcelVisual) return false;
+    var orderOk = false;
+    list.forEach(function (r) {
+      if (!r) return;
+      var tool = (r.tool || "").toLowerCase();
+      if (tool.indexOf("order") === -1) return;
+      if (r.ok) orderOk = true;
+    });
+    if (!orderOk) return false;
+    if (!evidence.hasOrderEta && !evidence.hasOrderMatchHint) return false;
+    return true;
+  }
+
+  /**
+   * Minimum usable evidence for Bedtime: at least one successful primary inspection read.
+   */
+  function hasBedtimeMinimumEvidence(evidence, results) {
+    var list = collectResults(results);
+    if (!list.length) return false;
+    if (!evidence || evidence.allReadsFailed) return false;
+    var primaryOk = false;
+    var primarySeen = false;
+    list.forEach(function (r) {
+      if (!r) return;
+      var tool = (r.tool || "").toLowerCase();
+      if (tool.indexOf("ring") === -1 && tool.indexOf("order") === -1) return;
+      primarySeen = true;
+      if (r.ok) primaryOk = true;
+    });
+    if (!primarySeen) return false;
+    return primaryOk;
+  }
+
   function defaultDoorstepPlan(ctx) {
     var facts = ctx.facts || {};
     var evidence = ctx.evidence || {};
@@ -234,7 +275,8 @@
     var needsClarification = false;
     var calendarWindow = evidence.calendarProposed || null;
 
-    if (evidence.allReadsFailed || (evidence.anyFailedRead && !evidence.hasRingMotion && !evidence.hasParcelVisual && !evidence.hasOrderEta)) {
+    var doorstepEvidenceOk = hasDoorstepMinimumEvidence(evidence, ctx.results || []);
+    if (!doorstepEvidenceOk || evidence.allReadsFailed) {
       needsClarification = true;
       recipient = { name: "household", role: "clarification" };
       action = "ask_clarification";
@@ -243,10 +285,19 @@
         timezone: "Africa/Johannesburg"
       };
       assumptions.push("Inspection tools did not return usable evidence");
+      if (!evidence.hasRingMotion && !evidence.hasParcelVisual) {
+        assumptions.push("No positive door/parcel observation is available");
+        assumptions.push("Visitor identity is not verified from order ETA alone");
+      }
+      if (evidence.anyFailedRead) {
+        assumptions.push("At least one required inspection read failed");
+      }
       explanation =
-        "Household inspection failed or returned no usable evidence. I need a successful doorbell/order read (or your confirmation) before proposing an approvable handoff.";
+        evidence.hasOrderEta && !evidence.hasRingMotion && !evidence.hasParcelVisual
+          ? "Order ETA alone is not enough for a confident visitor claim. I need a successful doorbell/parcel observation plus a reliable order read before proposing an approvable handoff."
+          : "Household inspection is missing, negative, unknown, or failed. I need a successful doorbell event plus a successful order read before proposing an approvable handoff.";
       if (!observations.length) {
-        observations.push("inspection reads failed or empty — clarification required");
+        observations.push("inspection reads failed, empty, or insufficient — clarification required");
       }
     } else if (evidence.hasMismatch || evidence.hasInsufficient || (!evidence.hasRingMotion && !evidence.hasParcelVisual && evidence.hasOrderEta)) {
       needsClarification = true;
@@ -328,6 +379,7 @@
 
   function defaultBedtimePlan(ctx) {
     var facts = ctx.facts || {};
+    var evidence = ctx.evidence || {};
     var caregiverUnavailable =
       facts.caregiverAvailable === false || facts.miraAvailable === false;
 
@@ -337,8 +389,23 @@
     var action;
     var timing;
     var explanation;
+    var needsClarification = false;
 
-    if (caregiverUnavailable) {
+    if (!hasBedtimeMinimumEvidence(evidence, ctx.results || [])) {
+      needsClarification = true;
+      recipient = { name: "household", role: "clarification" };
+      action = "ask_clarification";
+      timing = {
+        windowLabel: "Awaiting reliable bedtime inspection (SAST)",
+        timezone: "Africa/Johannesburg"
+      };
+      assumptions.push("Bedtime inspection tools did not return usable evidence");
+      explanation =
+        "Bedtime inspection reads are missing or failed. I need at least one successful device/presence read before proposing an approvable caregiver action.";
+      if (!observations.length) {
+        observations.push("bedtime inspection failed or empty — clarification required");
+      }
+    } else if (caregiverUnavailable) {
       recipient = { name: "Alexa routine", role: "automation" };
       action = "auto_pause_firetv";
       timing = {
@@ -360,11 +427,11 @@
         "Fire TV is past quiet hours and the bedtime routine is waiting on presence confirm — propose a short caregiver nudge before lights-out.";
     }
 
-    if (!observations.length) {
+    if (!observations.length && !needsClarification) {
       observations.push("Fire TV kids profile still streaming past quiet hours");
     }
 
-    return {
+    var bedtimeProposal = {
       planId: nextPlanId(),
       status: "draft",
       recipient: recipient,
@@ -376,6 +443,10 @@
       sampleRef: ctx.sampleRef !== undefined ? ctx.sampleRef : "TASK-22018",
       identityClaim: "n/a_bedtime"
     };
+    if (needsClarification) {
+      bedtimeProposal.needsClarification = true;
+    }
+    return bedtimeProposal;
   }
 
   /**
@@ -415,6 +486,7 @@
       facts: input.facts || {},
       observations: observations,
       evidence: evidence,
+      results: results,
       sampleRef: input.sampleRef,
       fixture: fixture,
       priorProposal: input.priorProposal || null

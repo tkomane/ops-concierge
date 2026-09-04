@@ -105,9 +105,20 @@
       /* e.g. "Confirm whether Mira is available" — not unconditional consent */
       if (/\b(whether|available|availability|ready|ours|parcel|match)\b/.test(q)) return true;
     }
+    /* Any approval-ish stem with a condition/dependency suffix is not consent. */
+    if (
+      /\b(go ahead|do it|approve|confirm|yes[,.]?\s+(approve|confirm|do|go)|make (the )?(guest code|bedtime task|task))\b/.test(q) &&
+      /\b(if|when|after|unless|once|provided that|as long as|only if)\b/.test(q)
+    ) {
+      return true;
+    }
     return false;
   }
 
+  /**
+   * Unconditional approval only: complete allowlist / full-utterance grammar.
+   * Open-ended prefixes like /^go ahead\b/ are intentionally rejected.
+   */
   function isApprove(q) {
     if (isConditionalOrConfirmQuestion(q)) return false;
 
@@ -140,18 +151,24 @@
     ];
     if (approveExact.indexOf(exact) !== -1) return true;
 
+    /* Full-utterance patterns only — must consume the entire normalized string. */
     if (
-      /^(please\s+)?(make|create|open|issue)\s+(the\s+)?(guest\s+code|bedtime\s+task|task)\b/.test(q)
+      /^(please\s+)?(make|create|open|issue)\s+(the\s+)?(guest\s+code|bedtime\s+task|task)\s*$/.test(q)
     ) {
       return true;
     }
-    /* Bounded: approve/confirm + optional plan id / it / the plan — not "confirm whether" */
     if (/^(please\s+)?(approve|confirm)(\s+(it|the\s+plan|the\s+proposal|plan_\d+))?\s*$/.test(q)) {
       return true;
     }
-    if (/^(please\s+)?(approve|confirm)\s+plan_\d+\b/.test(q)) return true;
-    if (/^yes[,.]?\s+(make|create|approve|confirm|do|go)\b/.test(q)) return true;
-    if (/^go ahead\b/.test(q) || /^do it\b/.test(q)) return true;
+    if (/^(please\s+)?(approve|confirm)\s+plan_\d+\s*$/.test(q)) return true;
+    if (
+      /^yes[,.]?\s+(please|make\s+it|make\s+the\s+(guest\s+code|task|bedtime\s+task)|approve(\s+it)?|confirm(\s+it)?|do\s+it|go\s+ahead)\s*$/.test(
+        q
+      )
+    ) {
+      return true;
+    }
+    if (/^(go ahead|do it)\s*$/.test(q)) return true;
 
     return false;
   }

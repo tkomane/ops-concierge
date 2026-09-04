@@ -362,7 +362,16 @@ describe("Intent+State integration — refuse vs approve path", () => {
             source: "mock",
             operationId: "op_x",
             tool: "ring.query",
-            observations: { summary: "ring motion at front door — parcel" },
+            observations: { motion: true, parcelVisual: true, summary: "ring motion at front door — parcel" },
+            outcome: {},
+            error: null
+          },
+          {
+            ok: true,
+            source: "mock",
+            operationId: "op_x2",
+            tool: "order.lookup",
+            observations: { eta: "16:00-18:00 SAST", carrier: "AMZL" },
             outcome: {},
             error: null
           }
@@ -390,7 +399,16 @@ describe("Intent+State integration — refuse vs approve path", () => {
             source: "mock",
             operationId: "op_y",
             tool: "ring.query",
-            observations: { summary: "ring motion + parcel" },
+            observations: { motion: true, parcelVisual: true, summary: "ring motion + parcel" },
+            outcome: {},
+            error: null
+          },
+          {
+            ok: true,
+            source: "mock",
+            operationId: "op_y2",
+            tool: "order.lookup",
+            observations: { eta: "16:00-18:00 SAST", carrier: "AMZL" },
             outcome: {},
             error: null
           }
@@ -511,11 +529,15 @@ describe("OpsPlanner — typed evidence (corrections 003)", () => {
   });
 
   it("bedtime Mira unavailable changes recipient away from Mira", () => {
-    const first = OpsPlanner.buildProposal({ storyId: "bedtime", results: [] });
+    const bedOk = [
+      { ok: true, tool: "ring.query", observations: { motion: true, summary: "presence" }, outcome: {}, error: null },
+      { ok: true, tool: "order.lookup", observations: { summary: "Fire TV kids profile streaming" }, outcome: {}, error: null }
+    ];
+    const first = OpsPlanner.buildProposal({ storyId: "bedtime", results: bedOk });
     assert.equal(first.recipient.name, "Mira");
     const { proposal } = OpsPlanner.replan({
       storyId: "bedtime",
-      results: [],
+      results: bedOk,
       priorProposal: first,
       facts: { miraAvailable: false, caregiverAvailable: false }
     });
@@ -558,5 +580,107 @@ describe("OpsState — full session persistence (corrections 003)", () => {
     assert.equal(snap.lastResults.length, 1);
     assert.equal(snap.actionCounts.notify, 1);
     assert.equal(snap.selectedPlanId, p.planId);
+  });
+});
+
+
+describe("OpsIntent — unconditional approval grammar (NEXT)", () => {
+  let OpsIntent;
+  beforeEach(() => {
+    ({ OpsIntent } = loadScripts());
+  });
+
+  it("conditional suffixes are not approve", () => {
+    const cases = [
+      "Go ahead if the parcel is ours",
+      "Do it after Mira confirms",
+      "Yes, approve if Mira is available",
+      "Approve plan_1 when Mira confirms",
+      "Go ahead if Mira confirms"
+    ];
+    for (const utterance of cases) {
+      const c = OpsIntent.classify(utterance);
+      assert.notEqual(c.intent, "approve", utterance);
+      assert.equal(c.intent, "ask_info", utterance);
+    }
+  });
+
+  it("complete unconditional utterances remain approve", () => {
+    assert.equal(OpsIntent.classify("go ahead").intent, "approve");
+    assert.equal(OpsIntent.classify("do it").intent, "approve");
+    assert.equal(OpsIntent.classify("yes, approve").intent, "approve");
+    assert.equal(OpsIntent.classify("Approve plan_1").intent, "approve");
+    assert.equal(OpsIntent.classify("please approve the plan").intent, "approve");
+  });
+});
+
+describe("OpsPlanner — evidence gates both stories (NEXT)", () => {
+  let OpsPlanner, OpsState;
+  beforeEach(() => {
+    ({ OpsPlanner, OpsState } = loadScripts());
+    OpsPlanner._resetSeq(0);
+  });
+
+  function assertNotApprovable(name, storyId, results) {
+    const p = OpsPlanner.buildProposal({ storyId, results });
+    assert.equal(p.needsClarification, true, name + " needsClarification");
+    assert.equal(p.action, "ask_clarification", name + " action");
+    const store = OpsState.createStore();
+    store.startStory(storyId);
+    store.setProposal(p);
+    const approval = store.approve(p.planId);
+    assert.equal(approval.ok, false, name + " approve");
+    assert.equal(approval.reason, "needs_clarification", name + " reason");
+  }
+
+  it("Doorstep no results / negative / failed order are not approvable", () => {
+    assertNotApprovable("no_results", "doorstep", []);
+    assertNotApprovable("false_event_no_order", "doorstep", [
+      { ok: true, tool: "ring.query", observations: { motion: false, parcelVisual: false }, outcome: {}, error: null }
+    ]);
+    assertNotApprovable("order_failed", "doorstep", [
+      { ok: true, tool: "ring.query", observations: { motion: true, parcelVisual: true }, outcome: {}, error: null },
+      { ok: false, tool: "order.lookup", error: { code: "unavailable" }, observations: null, outcome: null }
+    ]);
+  });
+
+  it("Bedtime all inspection reads failed is not approvable", () => {
+    assertNotApprovable("all_bedtime_reads_failed", "bedtime", [
+      { ok: false, tool: "ring.query", error: { code: "unavailable" }, observations: null, outcome: null },
+      { ok: false, tool: "order.lookup", error: { code: "unavailable" }, observations: null, outcome: null }
+    ]);
+  });
+});
+
+describe("OpsState — operation progress (NEXT)", () => {
+  it("persists per-plan notify/task progress across save/load", () => {
+    const { OpsState, OpsPlanner, OPS_SCENARIOS } = loadScripts();
+    OpsPlanner._resetSeq(0);
+    const mem = {
+      getItem() { return this._v || null; },
+      setItem(k, v) { this._v = String(v); },
+      removeItem() { this._v = null; }
+    };
+    const store = OpsState.createStore({ scenarios: OPS_SCENARIOS, storage: mem });
+    store.startStory("doorstep");
+    const p = OpsPlanner.buildProposal({
+      storyId: "doorstep",
+      results: [
+        { ok: true, tool: "ring.query", observations: { motion: true, parcelVisual: true }, outcome: {}, error: null },
+        { ok: true, tool: "order.lookup", observations: { eta: "16:00-18:00 SAST", carrier: "AMZL" }, outcome: {}, error: null }
+      ]
+    });
+    store.setProposal(p);
+    store.setOperationProgress(p.planId, "notify", { status: "done", operationId: "op_notify_stable" });
+    store.setOperationProgress(p.planId, "task", { status: "failed", operationId: "op_task_stable" });
+    store.save();
+    const store2 = OpsState.createStore({ scenarios: OPS_SCENARIOS, storage: mem });
+    assert.equal(store2.load().ok, true);
+    store2.switchStory("doorstep");
+    const prog = store2.getOperationProgress(p.planId);
+    assert.equal(prog.notify.status, "done");
+    assert.equal(prog.notify.operationId, "op_notify_stable");
+    assert.equal(prog.task.status, "failed");
+    assert.equal(prog.task.operationId, "op_task_stable");
   });
 });

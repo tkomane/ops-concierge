@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 
 ScenarioId = Literal["doorstep", "bedtime"]
@@ -13,6 +13,8 @@ class ToolOk(TypedDict):
     tool: str
     meta: str
     detail: dict[str, object]
+    observations: NotRequired[dict[str, object]]
+    operationId: NotRequired[str]
 
 
 class ToolErr(TypedDict):

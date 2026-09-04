@@ -88,3 +88,65 @@ def test_dispatch_unknown_tool():
 def test_dispatch_filters_extra_kwargs():
     r = dispatch("session.ack", {"session_id": "s1", "extra": "nope"})
     assert r["ok"] is True
+
+
+def test_ring_and_order_expose_typed_observations():
+    r = ring_query(zone="stoop", scenario="doorstep")
+    assert r["ok"] is True
+    assert r["observations"]["motion"] is True
+    assert r["observations"]["parcelVisual"] is True
+    o = order_lookup(scenario="doorstep")
+    assert o["observations"]["eta"]
+    assert o["observations"]["carrier"] == "AMZL"
+
+
+def test_notify_and_task_consume_plan_fields():
+    a = notify_household(
+        scenario="doorstep",
+        planId="plan_1",
+        recipient="Thabo",
+        recipientRole="neighbour",
+        action="notify_handoff",
+        timing="18:00-18:30 SAST",
+        operationId="op_notify_1",
+    )
+    b = notify_household(
+        scenario="doorstep",
+        planId="plan_2",
+        recipient="Mira",
+        recipientRole="parent",
+        action="defer_handoff_parent",
+        timing="18:20-18:45 SAST",
+        operationId="op_notify_2",
+    )
+    assert a["ok"] and b["ok"]
+    assert a["operationId"] == "op_notify_1"
+    assert b["operationId"] == "op_notify_2"
+    assert a["detail"]["recipient"] == "Thabo"
+    assert b["detail"]["recipient"] == "Mira"
+    assert a["detail"]["action"] == "notify_handoff"
+    assert b["detail"]["action"] == "defer_handoff_parent"
+    assert a["meta"] != b["meta"]
+    assert "Thabo" in a["detail"]["message"]
+    assert "Mira" in b["detail"]["message"]
+
+    t1 = task_open(
+        scenario="doorstep",
+        planId="plan_1",
+        recipient="Thabo",
+        action="notify_handoff",
+        operationId="op_task_1",
+    )
+    t2 = task_open(
+        scenario="doorstep",
+        planId="plan_2",
+        recipient="Mira",
+        action="defer_handoff_parent",
+        operationId="op_task_2",
+    )
+    assert t1["operationId"] == "op_task_1"
+    assert t2["operationId"] == "op_task_2"
+    assert t1["detail"]["status"] == "draft"
+    assert t1["detail"]["recipient"] == "Thabo"
+    assert t2["detail"]["recipient"] == "Mira"
+    assert t1["detail"]["title"] != t2["detail"]["title"]

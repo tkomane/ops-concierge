@@ -54,7 +54,8 @@
       messages: [],
       tools: [],
       backupChoice: null,
-      actionCounts: { notify: 0, task: 0 }
+      actionCounts: { notify: 0, task: 0 },
+      operationProgress: {}
     };
   }
 
@@ -391,7 +392,8 @@
         messages: s.messages,
         tools: s.tools,
         backupChoice: s.backupChoice,
-        actionCounts: s.actionCounts || { notify: 0, task: 0 }
+        actionCounts: s.actionCounts || { notify: 0, task: 0 },
+        operationProgress: s.operationProgress || {}
       });
     }
 
@@ -435,6 +437,10 @@
               task: Number(raw.actionCounts.task) || 0
             }
           : { notify: 0, task: 0 };
+      base.operationProgress =
+        raw.operationProgress && typeof raw.operationProgress === "object"
+          ? deepClone(raw.operationProgress)
+          : {};
       return base;
     }
 
@@ -560,6 +566,31 @@
         : { notify: 0, task: 0 };
     }
 
+    function getOperationProgress(planId) {
+      var s = getActiveSession();
+      if (!s || !s.operationProgress) return {};
+      if (!planId) return deepClone(s.operationProgress);
+      return deepClone(s.operationProgress[planId] || {});
+    }
+
+    function setOperationProgress(planId, opKind, patch) {
+      var s = requireActive();
+      if (!planId || !opKind) return getOperationProgress(planId);
+      if (!s.operationProgress) s.operationProgress = {};
+      if (!s.operationProgress[planId]) s.operationProgress[planId] = {};
+      var prev = s.operationProgress[planId][opKind] || {};
+      s.operationProgress[planId][opKind] = Object.assign({}, prev, deepClone(patch || {}));
+      return deepClone(s.operationProgress[planId]);
+    }
+
+    function clearOperationProgress(planId) {
+      var s = requireActive();
+      if (!s.operationProgress) s.operationProgress = {};
+      if (planId) delete s.operationProgress[planId];
+      else s.operationProgress = {};
+      return deepClone(s.operationProgress);
+    }
+
     return {
       STORAGE_KEY: storageKey,
       PHASES: PHASES,
@@ -604,6 +635,9 @@
       setUiState: setUiState,
       bumpAction: bumpAction,
       getActionCounts: getActionCounts,
+      getOperationProgress: getOperationProgress,
+      setOperationProgress: setOperationProgress,
+      clearOperationProgress: clearOperationProgress,
       save: save,
       load: load,
       clear: clearAll,

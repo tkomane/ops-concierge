@@ -105,9 +105,16 @@
     if (!readFlag()) return null;
     var up = await probeHealth(false);
     if (!up) return null;
+    /* Once POST may have been dispatched, never return null (mock blockers need attempted). */
+    var dispatched = false;
     try {
       var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
       var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 2500) : null;
+      var requestOpId =
+        argumentsObj && typeof argumentsObj === "object" && argumentsObj.operationId
+          ? String(argumentsObj.operationId)
+          : null;
+      dispatched = true;
       var res = await fetch(baseUrl() + "/demo/call", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -135,7 +142,7 @@
         return {
           ok: false,
           source: "bridge",
-          operationId: null,
+          operationId: requestOpId,
           tool: name,
           observations: null,
           outcome: null,
@@ -156,7 +163,7 @@
       return {
         ok: true,
         source: normalized.source || "bridge",
-        operationId: normalized.operationId,
+        operationId: normalized.operationId || requestOpId,
         tool: normalized.tool || name,
         observations: normalized.observations,
         outcome: normalized.outcome,
@@ -167,7 +174,31 @@
       };
     } catch (_err) {
       cachedHealthy = false;
-      /* Transport abort/network before a usable tool body — treat as unavailable. */
+      if (dispatched) {
+        /* Mutation may already have been accepted server-side — unknown/attempted failure. */
+        return {
+          ok: false,
+          source: "bridge",
+          operationId:
+            argumentsObj && typeof argumentsObj === "object" && argumentsObj.operationId
+              ? String(argumentsObj.operationId)
+              : null,
+          tool: name,
+          observations: null,
+          outcome: null,
+          error: {
+            code: "bridge_unknown_after_dispatch",
+            message:
+              "Bridge request may have been sent but no usable response was received (" +
+              String(_err && _err.message ? _err.message : _err) +
+              ")"
+          },
+          meta: "bridge unknown after dispatch · no mock fallback",
+          failureKind: "unknown_after_dispatch",
+          attempted: true
+        };
+      }
+      /* Transport failure before dispatch — treat as unavailable. */
       return null;
     }
   }

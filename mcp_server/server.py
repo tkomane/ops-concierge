@@ -45,6 +45,12 @@ _STRING_ARGS: frozenset[str] = frozenset(
         "session_id",
         "artefact_hint",
         "message",
+        "planId",
+        "recipient",
+        "recipientRole",
+        "action",
+        "timing",
+        "operationId",
     }
 )
 
@@ -78,14 +84,48 @@ def create_server() -> MCPServer:
         return calendar_propose(scenario=scenario)
 
     @mcp.tool(name="notify.household")
-    def _notify_household(scenario: str = "doorstep", message: str = "") -> ToolResult:
+    def _notify_household(
+        scenario: str = "doorstep",
+        message: str = "",
+        planId: str = "",
+        recipient: str = "",
+        recipientRole: str = "",
+        action: str = "",
+        timing: str = "",
+        operationId: str = "",
+    ) -> ToolResult:
         """Queue a household nudge (simulated — no push provider)."""
-        return notify_household(scenario=scenario, message=message)
+        return notify_household(
+            scenario=scenario,
+            message=message,
+            planId=planId,
+            recipient=recipient,
+            recipientRole=recipientRole,
+            action=action,
+            timing=timing,
+            operationId=operationId,
+        )
 
     @mcp.tool(name="task.open")
-    def _task_open(scenario: str = "doorstep") -> ToolResult:
+    def _task_open(
+        scenario: str = "doorstep",
+        planId: str = "",
+        recipient: str = "",
+        recipientRole: str = "",
+        action: str = "",
+        timing: str = "",
+        operationId: str = "",
+    ) -> ToolResult:
         """Open a guest/task artefact draft locally (no network write)."""
-        return task_open(scenario=scenario)
+        return task_open(
+            scenario=scenario,
+            planId=planId,
+            recipient=recipient,
+            recipientRole=recipientRole,
+            action=action,
+            timing=timing,
+            operationId=operationId,
+        )
 
     @mcp.custom_route("/healthz", methods=["GET", "OPTIONS"])
     async def healthz(request: Request) -> Response:
@@ -205,7 +245,8 @@ def create_server() -> MCPServer:
                 request,
             )
 
-        return _cors(_bridge_wrap(result), request)
+        requested_op = arguments.get("operationId") if isinstance(arguments.get("operationId"), str) else None
+        return _cors(_bridge_wrap(result, requested_operation_id=requested_op), request)
 
     @mcp.custom_route("/demo/tools", methods=["GET", "OPTIONS"])
     async def demo_tools(request: Request) -> Response:
@@ -243,17 +284,29 @@ def _bridge_error(
     return JSONResponse(body, status_code=status)
 
 
-def _bridge_wrap(result: ToolResult) -> JSONResponse:
+def _bridge_wrap(
+    result: ToolResult,
+    *,
+    requested_operation_id: str | None = None,
+) -> JSONResponse:
     """Attach bridge source / operationId; normalise tool errors to structured shape."""
-    op = _operation_id()
+    detail = result.get("detail") if isinstance(result.get("detail"), dict) else None
+    result_op = result.get("operationId") if isinstance(result.get("operationId"), str) else None
+    detail_op = detail.get("operationId") if detail and isinstance(detail.get("operationId"), str) else None
+    op = (requested_operation_id or result_op or detail_op or _operation_id()).strip() or _operation_id()
     if result.get("ok"):
+        observations = result.get("observations")
+        if observations is None and detail is not None:
+            observations = detail.get("observations")
         body: dict[str, Any] = {
             "ok": True,
             "source": "bridge",
             "operationId": op,
             "tool": result.get("tool"),
             "meta": result.get("meta"),
-            "detail": result.get("detail"),
+            "detail": detail,
+            "observations": observations,
+            "outcome": detail,
             "error": None,
         }
         return JSONResponse(body, status_code=200)
