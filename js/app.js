@@ -141,8 +141,25 @@
     state.ack = ["proposed", "superseded", "approved", "acted", "refused", "failed", "ack", "correlated", "windowed", "ticketed"].indexOf(state.phase) !== -1;
     state.tools = Array.isArray(snap.tools) ? snap.tools.slice() : [];
     state.messages = Array.isArray(snap.messages) ? snap.messages.slice() : [];
+    state.lastResults = Array.isArray(snap.lastResults) ? snap.lastResults.slice() : [];
     state.sessionId = snap.sessionId || state.sessionId;
     state.proposal = null;
+    if (Array.isArray(snap.proposals) && window.OpsPlanner && window.OpsPlanner.noteExistingPlanId) {
+      snap.proposals.forEach(function (pr) {
+        if (pr && pr.planId) window.OpsPlanner.noteExistingPlanId(pr.planId);
+      });
+    }
+    if (Array.isArray(snap.lastResults)) {
+      snap.lastResults.forEach(function (r) {
+        if (r && r.operationId && /^op_/.test(r.operationId)) {
+          const m = String(r.operationId).match(/_(\d+)$/);
+          if (m) {
+            const n = parseInt(m[1], 10);
+            if (n > opSeq) opSeq = n;
+          }
+        }
+      });
+    }
     if (snap.selectedPlanId && Array.isArray(snap.proposals)) {
       for (let i = 0; i < snap.proposals.length; i++) {
         if (snap.proposals[i].planId === snap.selectedPlanId) {
@@ -156,22 +173,32 @@
 
   function syncSessionMessagesTools() {
     if (!store || !store.getActive()) return;
-    const s = store.getSession();
-    if (!s) return;
-    /* mutate live session via setFacts / direct — store snapshots are clones;
-       keep tools/messages on UI state and flush on save via custom path */
+    /* Store owns complete session — never write a cloned snapshot that save() overwrites. */
     try {
-      const live = store.snapshot();
-      const id = live.active;
-      if (!id || !live.sessions[id]) return;
-      live.sessions[id].messages = state.messages.slice();
-      live.sessions[id].tools = state.tools.slice();
-      live.sessions[id].phase = state.phase;
-      live.sessions[id].sessionId = state.sessionId;
-      if (typeof localStorage !== "undefined") {
-        localStorage.setItem(store.STORAGE_KEY, JSON.stringify(live));
-      }
+      store.setUiState({
+        messages: state.messages,
+        tools: state.tools,
+        lastResults: state.lastResults,
+        phase: ["idle","inspecting","proposed","superseded","approved","acted","refused","failed"].indexOf(state.phase) !== -1
+          ? state.phase
+          : undefined,
+        sessionId: state.sessionId
+      });
     } catch (_e) {}
+  }
+
+  function canResumeSession(snap) {
+    if (!snap || !snap.fixture) return false;
+    if (snap.selectedPlanId && snap.phase && snap.phase !== "idle") {
+      if (snap.phase === "inspecting") {
+        return Array.isArray(snap.tools) && snap.tools.length > 0;
+      }
+      return true;
+    }
+    if (Array.isArray(snap.proposals) && snap.proposals.length && snap.phase && snap.phase !== "idle") {
+      return true;
+    }
+    return false;
   }
 
   function escapeHtml(str) {
@@ -743,8 +770,19 @@
     syncHowFromTools(status === "running" ? t.name : null);
   }
 
-  function mcpArgsFor(name) {
+  function mcpArgsFor(name, opId) {
     const scenario = state.scenarioId || "doorstep";
+    const plan = state.proposal;
+    const planFields = plan
+      ? {
+          planId: plan.planId,
+          recipient: plan.recipient && plan.recipient.name,
+          recipientRole: plan.recipient && plan.recipient.role,
+          action: plan.action,
+          timing: plan.timing && plan.timing.windowLabel,
+          operationId: opId || undefined
+        }
+      : { operationId: opId || undefined };
     switch (name) {
       case "ring.query":
         return {
@@ -761,12 +799,16 @@
       case "calendar.propose":
         return { scenario };
       case "notify.household":
-        return { scenario };
+        return Object.assign({ scenario }, planFields);
       case "task.open":
-        return { scenario };
+        return Object.assign({ scenario }, planFields);
       default:
         return { scenario };
     }
+  }
+
+  function isMutationTool(name) {
+    return name === "notify.household" || name === "task.open";
   }
 
   async function runTool(name, meta, work, opts) {
@@ -793,23 +835,58 @@
 
     if (window.OpsMcpClient && window.OpsMcpClient.isEnabled()) {
       try {
-        const live = await window.OpsMcpClient.callTool(name, mcpArgsFor(name));
-        if (live && live.meta) {
+        const live = await window.OpsMcpClient.callTool(name, mcpArgsFor(name, opId));
+        /* Attempted bridge call returned structured failure — never mock mutations. */
+        if (live && live.ok === false && live.attempted) {
+          const fail = {
+            ok: false,
+            source: live.source || "bridge",
+            operationId: live.operationId || opId,
+            tool: name,
+            observations: null,
+            outcome: null,
+            error: live.error || { code: live.failureKind || "bridge_failure", message: "Bridge mutation failed" },
+            meta: (live.meta || "bridge failure") + " · no mock fallback",
+            failureKind: live.failureKind || (live.error && live.error.code) || "bridge_failure"
+          };
+          updateTool(i, "err", fail.meta);
+          state.lastResults.push(fail);
+          return fail;
+        }
+        if (live && live.ok !== false && (live.meta || live.detail || live.outcome)) {
           const result = {
             ok: true,
-            source: "bridge",
-            operationId: opId,
+            source: live.source || "bridge",
+            operationId: live.operationId || opId,
             tool: name,
-            observations: (live.detail && live.detail.observations) || { summary: live.meta },
-            outcome: live.detail || {},
+            observations: live.observations || (live.detail && live.detail.observations) || { summary: live.meta },
+            outcome: live.outcome || live.detail || {},
             error: null,
-            meta: live.meta + " · bridge"
+            meta: (live.meta || name) + " · bridge"
           };
           updateTool(i, "ok", result.meta);
           state.lastResults.push(result);
           return result;
         }
-        /* labelled mock fallback — bridge unavailable / null */
+        /* null → bridge unavailable before attempt */
+        if (live == null) {
+          if (isMutationTool(name) && (opts.requireBridge || opts.noMockOnBridgeDown)) {
+            const fail = {
+              ok: false,
+              source: "bridge",
+              operationId: opId,
+              tool: name,
+              observations: null,
+              outcome: null,
+              error: { code: "bridge_unavailable", message: "Bridge unavailable before attempt" },
+              meta: "FAIL · bridge unavailable · labelled (no silent success)"
+            };
+            updateTool(i, "err", fail.meta);
+            state.lastResults.push(fail);
+            return fail;
+          }
+          /* labelled mock OK for reads only when bridge was never attempted */
+        }
         if (!opts.allowMockFallback && opts.requireBridge) {
           const fail = {
             ok: false,
@@ -826,8 +903,39 @@
           return fail;
         }
       } catch (_err) {
-        /* labelled fallthrough to mock below */
+        if (isMutationTool(name) && opts.requireBridge) {
+          const fail = {
+            ok: false,
+            source: "bridge",
+            operationId: opId,
+            tool: name,
+            observations: null,
+            outcome: null,
+            error: { code: "bridge_exception", message: String(_err && _err.message ? _err.message : _err) },
+            meta: "FAIL · bridge exception · no mock fallback"
+          };
+          updateTool(i, "err", fail.meta);
+          state.lastResults.push(fail);
+          return fail;
+        }
+        /* labelled fallthrough to mock for reads */
       }
+    }
+    /* Mutations that already attempted the bridge must not reach mock success. */
+    if (isMutationTool(name) && opts.bridgeAttemptedFail) {
+      const fail = {
+        ok: false,
+        source: "bridge",
+        operationId: opId,
+        tool: name,
+        observations: null,
+        outcome: null,
+        error: { code: "bridge_failure", message: "Bridge mutation failed; mock blocked" },
+        meta: "FAIL · bridge mutation · mock blocked"
+      };
+      updateTool(i, "err", fail.meta);
+      state.lastResults.push(fail);
+      return fail;
     }
     const raw = await work();
     const result = {
@@ -1087,7 +1195,12 @@
           `<h3>Quiet-hours plan (SAST)</h3></div>` +
           `<dl class="kv">` +
           `<dt>Best time</dt><dd>${escapeHtml((state.proposal && state.proposal.timing && state.proposal.timing.windowLabel) || s.window.proposed)}</dd>` +
-          `<dt>Backup</dt><dd>${escapeHtml(s.window.alt)}</dd>` +
+          `<dt>Backup</dt><dd>${escapeHtml(
+            (store && store.getBackupChoice() && store.getBackupChoice().label) ||
+            (state.proposal && state.proposal.recipient && state.proposal.recipient.name === "Mira"
+              ? "Superseded neighbour leave-with (Thabo unavailable)"
+              : s.window.alt)
+          )}</dd>` +
           `<dt>Why</dt><dd>${escapeHtml((state.proposal && state.proposal.explanation) || s.window.rationale)}</dd>` +
           `<dt>Timezone</dt><dd>${escapeHtml(s.window.tz)}</dd>` +
           `</dl></div></div>`
@@ -1378,16 +1491,28 @@
 
     /* Immutable seeds: always clone via OpsState — never mutate OPS_SCENARIOS */
     let snap;
+    let resuming = false;
     if (store) {
-      if (opts.resume && store.getSession(id) && store.getSession(id).fixture) {
-        store.switchStory(id);
-        snap = store.getSession(id);
-      } else if (switching && !opts.fresh) {
-        /* pause prior; start or resume target */
+      if (opts.resume) {
         store.switchStory(id);
         const existing = store.getSession(id);
-        if (existing && existing.fixture && existing.phase !== "idle" && !opts.forceRestart) {
+        if (canResumeSession(existing) && !opts.forceRestart && !opts.fresh) {
           snap = existing;
+          resuming = true;
+        } else {
+          /* Fresh suggestion / empty session — inspect, do not claim resume */
+          snap = store.startStory(id, { phase: "inspecting" });
+          resuming = false;
+        }
+      } else if (switching && !opts.fresh) {
+        /* pause prior; start or resume target */
+        syncSessionMessagesTools();
+        persistDemo();
+        store.switchStory(id);
+        const existing = store.getSession(id);
+        if (canResumeSession(existing) && !opts.forceRestart) {
+          snap = existing;
+          resuming = true;
         } else {
           snap = store.startStory(id, { phase: "inspecting" });
         }
@@ -1407,18 +1532,8 @@
       state.lastResults = [];
     }
 
-    /* If resuming a mid-plan session, restore UI without re-inspecting */
-    if (
-      opts.resume ||
-      (switching &&
-        snap &&
-        snap.phase &&
-        snap.phase !== "idle" &&
-        snap.phase !== "inspecting" &&
-        snap.selectedPlanId &&
-        !opts.forceRestart &&
-        !opts.fresh)
-    ) {
+    /* Resume only when an existing usable session/plan exists */
+    if (resuming) {
       setThinking(false);
       resetHowStrip();
       highlightHow(id);
@@ -1569,13 +1684,60 @@
 
   async function handleAskInfo(utterance) {
     pushMsg("user", utterance);
-    pushMsg(
-      "agent",
-      "A guest code here is a sample handoff artifact (e.g. GUEST-10421) — a simulated instruction card for the household demo. It is not a working gate or door credential, and asking about it does not create one. Approve an explicit plan if you want the simulation to open the card."
-    );
+    const q = String(utterance || "").toLowerCase();
+    if (/available|whether|only if|confirm if|confirm whether/.test(q)) {
+      pushMsg(
+        "agent",
+        "That’s an information check, not approval — I won’t notify anyone or open a card. " +
+          (state.proposal
+            ? ("Current draft is " +
+                (state.proposal.recipient && state.proposal.recipient.name) +
+                " / " +
+                state.proposal.action +
+                " (" +
+                state.proposal.planId +
+                "). Say an unconditional “approve” or “approve " +
+                state.proposal.planId +
+                "” when you want to proceed.")
+            : "Start a story first if you want a plan on the board.")
+      );
+    } else {
+      pushMsg(
+        "agent",
+        "A guest code here is a sample handoff artifact (e.g. GUEST-10421) — a simulated instruction card for the household demo. It is not a working gate or door credential, and asking about it does not create one. Approve an explicit plan if you want the simulation to open the card."
+      );
+    }
     setChips(proposalChips());
     renderCards();
     syncChrome();
+    syncSessionMessagesTools();
+    persistDemo();
+  }
+
+  function factsFromReplanUtterance(utterance, storyId) {
+    const q = String(utterance || "").toLowerCase();
+    const facts = {};
+    const namesCaregiver = /\b(mira|parent|caregiver)\b/.test(q);
+    const namesNeighbour = /\b(neighbour|neighbor|thabo)\b/.test(q);
+    const unavailable = /\b(unavailable|can't|cannot|can not|not available|busy|away|out)\b/.test(q) ||
+      /\b(is|are)\s+not\b/.test(q);
+    if (namesCaregiver && unavailable) {
+      facts.caregiverAvailable = false;
+      facts.miraAvailable = false;
+    } else if (namesNeighbour && unavailable) {
+      facts.neighbourAvailable = false;
+      facts.neighbourUnavailable = true;
+    } else if (unavailable && storyId === "bedtime") {
+      facts.caregiverAvailable = false;
+      facts.miraAvailable = false;
+    } else if (unavailable) {
+      facts.neighbourAvailable = false;
+      facts.neighbourUnavailable = true;
+    }
+    if (/\bbackup\b/.test(q)) {
+      facts.preferBackup = true;
+    }
+    return facts;
   }
 
   async function handleReplan(utterance) {
@@ -1585,7 +1747,7 @@
       return;
     }
     setThinking(true);
-    const facts = { neighbourAvailable: false, neighbourUnavailable: true };
+    const facts = factsFromReplanUtterance(utterance, state.scenarioId);
     if (store) store.setFacts(facts);
     const prior = state.proposal;
     const replanned = window.OpsPlanner
@@ -1606,30 +1768,53 @@
     if (store) store.supersede(replanned.proposal);
     state.proposal = replanned.proposal;
     state.phase = "proposed";
-    /* keep fixture clone honest — backup choice only on session */
+    /* keep fixture clone honest — backup choice only on session; align summaries with selected plan */
     if (store) {
-      store.setBackupChoice({ window: state.scenario.window.alt });
+      const backupLabel =
+        facts.neighbourUnavailable || facts.neighbourAvailable === false
+          ? "Superseded neighbour leave-with (Thabo unavailable)"
+          : facts.miraAvailable === false || facts.caregiverAvailable === false
+            ? "Caregiver nudge superseded — automation backup"
+            : (state.scenario.window && state.scenario.window.alt) || "Alternate window";
+      store.setBackupChoice({ window: backupLabel, label: backupLabel });
       store.mutateFixture(function (f) {
         if (f && f.window) {
           f.window.proposed = replanned.proposal.timing.windowLabel;
+          f.window.alt = backupLabel;
         }
       });
       state.scenario = store.getFixture();
     }
     setThinking(false);
-    pushMsg(
-      "agent",
-      "Got it — neighbour unavailable. Prior plan " +
-        (prior && prior.planId ? prior.planId : "") +
-        " is superseded. New plan: recipient " +
-        replanned.proposal.recipient.name +
-        ", action " +
-        replanned.proposal.action +
-        ", timing " +
-        replanned.proposal.timing.windowLabel +
-        ". " +
-        replanned.proposal.explanation
-    );
+    const changedRecipient =
+      prior && prior.recipient && replanned.proposal.recipient &&
+      prior.recipient.name !== replanned.proposal.recipient.name;
+    if (
+      (facts.miraAvailable === false || facts.caregiverAvailable === false) &&
+      replanned.proposal.recipient &&
+      replanned.proposal.recipient.name === "Mira"
+    ) {
+      pushMsg(
+        "agent",
+        "Mira/caregiver is marked unavailable, but I still need a feasible alternate. " +
+          "Please confirm who should take the bedtime check-in, or say “use the backup plan” for automation."
+      );
+    } else {
+      pushMsg(
+        "agent",
+        "Got it — updated facts applied. Prior plan " +
+          (prior && prior.planId ? prior.planId : "") +
+          " is superseded. New plan: recipient " +
+          replanned.proposal.recipient.name +
+          ", action " +
+          replanned.proposal.action +
+          ", timing " +
+          replanned.proposal.timing.windowLabel +
+          (changedRecipient ? " (recipient changed)." : ".") +
+          " " +
+          replanned.proposal.explanation
+      );
+    }
     setChips(proposalChips());
     renderCards();
     syncChrome();
@@ -1637,16 +1822,34 @@
     persistDemo();
   }
 
-  async function handleApprove(utterance) {
+  async function handleApprove(utterance, classified) {
     pushMsg("user", utterance);
     if (!state.scenario || !state.proposal) {
       pushMsg("agent", "Nothing to approve yet. Start Doorstep or Bedtime first.");
       return;
     }
-    const planId = state.proposal.planId;
+    if (state.proposal.needsClarification || state.proposal.action === "ask_clarification") {
+      pushMsg(
+        "agent",
+        "This proposal still needs clarification — I won’t notify or open a card until evidence is resolved."
+      );
+      setChips(proposalChips());
+      renderCards();
+      syncChrome();
+      return;
+    }
+    classified = classified || {};
+    const explicitPlanId = classified.planId || null;
+    const planId = explicitPlanId || state.proposal.planId;
     let decision = { ok: true, idempotent: false, planId: planId };
     if (store) {
       decision = store.approve(planId);
+    } else if (explicitPlanId && state.proposal.planId !== explicitPlanId) {
+      decision = {
+        ok: false,
+        reason: "unknown_or_stale",
+        message: "That plan id is not the current proposal. Approve the current plan or name its id."
+      };
     }
     if (!decision.ok) {
       pushMsg(
@@ -1656,27 +1859,32 @@
       setChips(proposalChips());
       renderCards();
       syncChrome();
+      syncSessionMessagesTools();
+      persistDemo();
       return;
     }
     if (decision.idempotent) {
       pushMsg(
         "agent",
-        "Already approved — no duplicate notification or card. Status stays confirmed for plan " +
+        "Already approved — no duplicate notification or card. Status stays " +
+          ((state.proposal && state.proposal.status) || "confirmed") +
+          " for plan " +
           planId +
-          "."
+          ". Action counts unchanged."
       );
       setChips(proposalChips());
       renderCards();
       syncChrome();
+      syncSessionMessagesTools();
+      persistDemo();
       return;
     }
 
     state.phase = "approved";
-    if (state.proposal) state.proposal = Object.assign({}, state.proposal, { status: "confirmed" });
     setThinking(true);
 
-    /* Distinct draft → queued → confirmed */
-    pushMsg("agent", "Approval recorded. Queuing a simulated household nudge, then confirming the handoff card…");
+    /* Distinct draft → queued → (status from tool outcome) */
+    pushMsg("agent", "Approval recorded. Queuing a simulated household nudge, then opening the handoff card…");
     if (state.proposal) {
       state.proposal = Object.assign({}, state.proposal, { status: "queued" });
       state.queuedNotify = true;
@@ -1700,7 +1908,7 @@
           (notify.source || "unknown") +
           ". " +
           ((notify.error && notify.error.message) || "Tool error") +
-          " Recovery: fix the helper link, retry approval, or decline."
+          " Recovery: fix the helper link, retry approval, or decline. Notification was not mocked as success."
       );
       setChips(proposalChips());
       renderCards();
@@ -1709,11 +1917,12 @@
       persistDemo();
       return;
     }
+    if (store) store.bumpAction("notify");
 
     const opened = await runTool("task.open", "Draft handoff card (local)", async () => ({
-      meta: state.scenario.ticket.id + " confirmed",
+      meta: state.scenario.ticket.id + " draft",
       observations: { summary: "handoff card opened" },
-      outcome: { id: state.scenario.ticket.id, status: "confirmed" }
+      outcome: { id: state.scenario.ticket.id, status: "draft" }
     }), { requireBridge: false });
 
     if (!opened.ok) {
@@ -1725,7 +1934,8 @@
         "Handoff card could not be opened — no false success. Source: " +
           (opened.source || "unknown") +
           ". " +
-          ((opened.error && opened.error.message) || "Tool error")
+          ((opened.error && opened.error.message) || "Tool error") +
+          " Notification already queued once; retry will not re-send unless you reset."
       );
       setChips(proposalChips());
       renderCards();
@@ -1734,9 +1944,21 @@
       persistDemo();
       return;
     }
+    if (store) store.bumpAction("task");
 
+    const outcomeStatus =
+      (opened.outcome && opened.outcome.status) ||
+      (opened.observations && opened.observations.status) ||
+      "draft";
+    /* Report only the status supported by the actual tool result (backend may stay draft). */
+    const reportedStatus = outcomeStatus === "confirmed" ? "confirmed" : outcomeStatus;
     if (state.proposal) {
-      state.proposal = Object.assign({}, state.proposal, { status: "confirmed" });
+      state.proposal = Object.assign({}, state.proposal, { status: reportedStatus === "draft" ? "confirmed" : reportedStatus });
+      /* Plan lifecycle can be confirmed locally after successful open; artefact status stays outcomeStatus */
+      state.proposal = Object.assign({}, state.proposal, {
+        status: "confirmed",
+        artefactStatus: outcomeStatus
+      });
       if (store) store.setProposal(state.proposal);
     }
     state.phase = "acted";
@@ -1744,11 +1966,15 @@
     setThinking(false);
     pushMsg(
       "agent",
-      "Confirmed handoff for " +
+      "Handoff for " +
         (state.proposal.recipient && state.proposal.recipient.name) +
-        ". Simulated notification queued then confirmed. Sample ref " +
+        " recorded. Notification source: " +
+        (notify.source || "mock") +
+        ". Card/tool status from backend: " +
+        outcomeStatus +
+        " (plan marked confirmed after successful open). Sample ref " +
         state.scenario.ticket.id +
-        " is ready to copy — it is not a gate credential. Draft, queued, and confirmed stayed distinct."
+        " is ready to copy — it is not a gate credential."
     );
     setChips(proposalChips());
     renderCards();
@@ -1764,7 +1990,11 @@
       syncSessionMessagesTools();
       persistDemo();
     }
-    await ingest(other, { resume: true, forceRestart: false });
+    const existing = store ? store.getSession(other) : null;
+    await ingest(other, {
+      resume: canResumeSession(existing),
+      forceRestart: false
+    });
   }
 
   async function resetDemoFresh() {
@@ -2054,8 +2284,8 @@
       return;
     }
     if (intent === "approve") {
-      /* Artefact / plan chips before story restarts — explicit approve only */
-      await handleApprove(classified.utterance || text);
+      /* Artefact / plan chips before story restarts — explicit approve only; carry planId */
+      await handleApprove(classified.utterance || text, classified);
       return;
     }
     if (intent === "reset") {

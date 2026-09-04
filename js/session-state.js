@@ -49,10 +49,12 @@
       executedPlanId: null,
       lastResult: null,
       lastError: null,
+      lastResults: [],
       facts: {},
       messages: [],
       tools: [],
-      backupChoice: null
+      backupChoice: null,
+      actionCounts: { notify: 0, task: 0 }
     };
   }
 
@@ -221,6 +223,9 @@
     function setProposal(proposal) {
       var s = requireActive();
       var p = deepClone(proposal);
+      if (root.OpsPlanner && typeof root.OpsPlanner.noteExistingPlanId === "function" && p.planId) {
+        root.OpsPlanner.noteExistingPlanId(p.planId);
+      }
       setActiveProposal(s, p);
       if (p.status === "draft" || p.status === "queued" || !p.status) {
         if (!p.status) p.status = "draft";
@@ -331,6 +336,13 @@
       if (p.status === "refused") {
         return { ok: false, reason: "refused", message: "This plan was refused." };
       }
+      if (p.needsClarification || p.action === "ask_clarification") {
+        return {
+          ok: false,
+          reason: "needs_clarification",
+          message: "This proposal still needs clarification — it is not approvable yet."
+        };
+      }
       p.status = "confirmed";
       s.selectedPlanId = targetId;
       s.phase = "approved";
@@ -374,10 +386,12 @@
         executedPlanId: s.executedPlanId,
         lastResult: s.lastResult,
         lastError: s.lastError,
+        lastResults: s.lastResults || [],
         facts: s.facts,
         messages: s.messages,
         tools: s.tools,
-        backupChoice: s.backupChoice
+        backupChoice: s.backupChoice,
+        actionCounts: s.actionCounts || { notify: 0, task: 0 }
       });
     }
 
@@ -400,14 +414,27 @@
       base.phase = PHASES.indexOf(raw.phase) !== -1 ? raw.phase : "idle";
       base.fixture = raw.fixture ? deepClone(raw.fixture) : null;
       base.proposals = Array.isArray(raw.proposals) ? deepClone(raw.proposals) : [];
+      if (root.OpsPlanner && typeof root.OpsPlanner.noteExistingPlanId === "function") {
+        base.proposals.forEach(function (pr) {
+          if (pr && pr.planId) root.OpsPlanner.noteExistingPlanId(pr.planId);
+        });
+      }
       base.selectedPlanId = raw.selectedPlanId || null;
       base.executedPlanId = raw.executedPlanId || null;
       base.lastResult = raw.lastResult == null ? null : deepClone(raw.lastResult);
       base.lastError = raw.lastError == null ? null : deepClone(raw.lastError);
+      base.lastResults = Array.isArray(raw.lastResults) ? deepClone(raw.lastResults) : [];
       base.facts = raw.facts && typeof raw.facts === "object" ? deepClone(raw.facts) : {};
       base.messages = Array.isArray(raw.messages) ? deepClone(raw.messages) : [];
       base.tools = Array.isArray(raw.tools) ? deepClone(raw.tools) : [];
       base.backupChoice = raw.backupChoice == null ? null : deepClone(raw.backupChoice);
+      base.actionCounts =
+        raw.actionCounts && typeof raw.actionCounts === "object"
+          ? {
+              notify: Number(raw.actionCounts.notify) || 0,
+              task: Number(raw.actionCounts.task) || 0
+            }
+          : { notify: 0, task: 0 };
       return base;
     }
 
@@ -485,6 +512,54 @@
       }
     }
 
+
+    /**
+     * Store owns complete session UI: messages, tools, lastResults, phase.
+     * Callers must use this instead of writing a cloned snapshot to localStorage
+     * that save() would immediately overwrite.
+     */
+    function setUiState(patch) {
+      var s = requireActive();
+      patch = patch || {};
+      if (Object.prototype.hasOwnProperty.call(patch, "messages")) {
+        s.messages = Array.isArray(patch.messages) ? deepClone(patch.messages) : [];
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "tools")) {
+        s.tools = Array.isArray(patch.tools) ? deepClone(patch.tools) : [];
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "lastResults")) {
+        s.lastResults = Array.isArray(patch.lastResults) ? deepClone(patch.lastResults) : [];
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "phase") && patch.phase) {
+        if (PHASES.indexOf(patch.phase) !== -1) s.phase = patch.phase;
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "sessionId") && patch.sessionId) {
+        s.sessionId = patch.sessionId;
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "actionCounts") && patch.actionCounts) {
+        s.actionCounts = {
+          notify: Number(patch.actionCounts.notify) || 0,
+          task: Number(patch.actionCounts.task) || 0
+        };
+      }
+      return snapshotSession(s);
+    }
+
+    function bumpAction(kind) {
+      var s = requireActive();
+      if (!s.actionCounts) s.actionCounts = { notify: 0, task: 0 };
+      if (kind === "notify") s.actionCounts.notify += 1;
+      else if (kind === "task") s.actionCounts.task += 1;
+      return deepClone(s.actionCounts);
+    }
+
+    function getActionCounts() {
+      var s = getActiveSession();
+      return s && s.actionCounts
+        ? deepClone(s.actionCounts)
+        : { notify: 0, task: 0 };
+    }
+
     return {
       STORAGE_KEY: storageKey,
       PHASES: PHASES,
@@ -526,6 +601,9 @@
       getFixture: getFixture,
       getSeedSnapshot: getSeedSnapshot,
       seedsIntact: seedsIntact,
+      setUiState: setUiState,
+      bumpAction: bumpAction,
+      getActionCounts: getActionCounts,
       save: save,
       load: load,
       clear: clearAll,

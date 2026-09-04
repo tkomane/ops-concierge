@@ -89,7 +89,28 @@
     return false;
   }
 
+  function extractPlanId(q) {
+    var m = String(q || "").match(/\b(plan_\d+)\b/i);
+    return m ? m[1].toLowerCase().replace(/^plan_/i, "plan_") : null;
+  }
+
+  /** Unresolved conditions / confirm-whether questions are not consent. */
+  function isConditionalOrConfirmQuestion(q) {
+    if (/\b(approve|confirm)\b/.test(q) && /\bonly if\b|\bif and only if\b|\bunless\b/.test(q)) {
+      return true;
+    }
+    if (/\bconfirm whether\b/.test(q) || /\bconfirm if\b/.test(q)) return true;
+    if (/^(approve|confirm)\b/.test(q) && /\b(whether|if)\b/.test(q)) return true;
+    if (/\b(approve|confirm)\b/.test(q) && isQuestion(q) && !/\bplan_\d+\b/i.test(q)) {
+      /* e.g. "Confirm whether Mira is available" — not unconditional consent */
+      if (/\b(whether|available|availability|ready|ours|parcel|match)\b/.test(q)) return true;
+    }
+    return false;
+  }
+
   function isApprove(q) {
+    if (isConditionalOrConfirmQuestion(q)) return false;
+
     var exact = stripEdgePunct(q);
 
     var approveExact = [
@@ -124,7 +145,11 @@
     ) {
       return true;
     }
-    if (/^(please\s+)?(approve|confirm)\b/.test(q)) return true;
+    /* Bounded: approve/confirm + optional plan id / it / the plan — not "confirm whether" */
+    if (/^(please\s+)?(approve|confirm)(\s+(it|the\s+plan|the\s+proposal|plan_\d+))?\s*$/.test(q)) {
+      return true;
+    }
+    if (/^(please\s+)?(approve|confirm)\s+plan_\d+\b/.test(q)) return true;
     if (/^yes[,.]?\s+(make|create|approve|confirm|do|go)\b/.test(q)) return true;
     if (/^go ahead\b/.test(q) || /^do it\b/.test(q)) return true;
 
@@ -208,15 +233,27 @@
       return { intent: "ambiguous", utterance: original, normalized: q, reason: "empty" };
     }
 
-    /* Order: decline + ask_info before approve (guest-code substring trap). */
+    /* Order: decline + ask_info / unresolved conditions before approve. */
     if (isDecline(q)) {
       return { intent: "decline", utterance: original, normalized: q, reason: "negation_or_deferral" };
     }
     if (isAskInfo(q)) {
       return { intent: "ask_info", utterance: original, normalized: q, reason: "information_request" };
     }
+    if (isConditionalOrConfirmQuestion(q)) {
+      return {
+        intent: "ask_info",
+        utterance: original,
+        normalized: q,
+        reason: "unresolved_condition_or_question",
+        planId: extractPlanId(q)
+      };
+    }
     if (isApprove(q)) {
-      return { intent: "approve", utterance: original, normalized: q, reason: "explicit_positive" };
+      var planId = extractPlanId(q);
+      var out = { intent: "approve", utterance: original, normalized: q, reason: "explicit_positive" };
+      if (planId) out.planId = planId;
+      return out;
     }
     if (isReplanFacts(q)) {
       return { intent: "replan_facts", utterance: original, normalized: q, reason: "changed_facts" };

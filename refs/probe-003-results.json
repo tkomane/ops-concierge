@@ -1,0 +1,171 @@
+{
+  "checkout": "/workspace/ops-concierge",
+  "intent": [
+    {
+      "utterance": "Don't make the guest code",
+      "intent": "decline",
+      "normalized": "don't make the guest code",
+      "reason": "negation_or_deferral"
+    },
+    {
+      "utterance": "What is a guest code?",
+      "intent": "ask_info",
+      "normalized": "what is a guest code?",
+      "reason": "information_request"
+    },
+    {
+      "utterance": "Confirm whether Mira is available",
+      "intent": "ask_info",
+      "normalized": "confirm whether mira is available",
+      "reason": "unresolved_condition_or_question",
+      "planId": null
+    },
+    {
+      "utterance": "Approve only if the parcel is ours",
+      "intent": "ask_info",
+      "normalized": "approve only if the parcel is ours",
+      "reason": "unresolved_condition_or_question",
+      "planId": null
+    },
+    {
+      "utterance": "Approve plan_1",
+      "intent": "approve",
+      "normalized": "approve plan_1",
+      "reason": "explicit_positive",
+      "planId": "plan_1"
+    }
+  ],
+  "calendarChange": {
+    "before": {
+      "recipient": "Thabo",
+      "action": "notify_handoff",
+      "timing": "Neighbour leave-with 18:00-18:30 SAST"
+    },
+    "after": {
+      "recipient": "Mira",
+      "action": "defer_handoff_parent",
+      "timing": "Parent claim window 20:00-20:30 SAST"
+    },
+    "decisionUnchanged": false
+  },
+  "explicitFalseEvidence": {
+    "evidence": {
+      "hasRingMotion": false,
+      "hasParcelVisual": false,
+      "hasOrderEta": true,
+      "hasOrderMatchHint": false,
+      "hasMismatch": false,
+      "hasInsufficient": false,
+      "canClaimVisitorIdentity": false,
+      "anyOkRead": true,
+      "anyFailedRead": false,
+      "allReadsFailed": false,
+      "calendarProposed": null
+    },
+    "identityClaim": "no_confident_visitor_identity"
+  },
+  "mismatchedEvidence": {
+    "proposal": {
+      "planId": "plan_4",
+      "status": "draft",
+      "recipient": {
+        "name": "household",
+        "role": "clarification"
+      },
+      "action": "ask_clarification",
+      "timing": {
+        "windowLabel": "Clarify before handoff (SAST)",
+        "timezone": "Africa/Johannesburg"
+      },
+      "observations": [
+        "motion: true",
+        "parcelVisual: true",
+        "matched: false",
+        "eta: 16:00-18:00 SAST"
+      ],
+      "assumptions": [
+        "Visitor identity is not verified from order ETA alone",
+        "Order evidence is mismatched with the door event"
+      ],
+      "explanation": "Order evidence does not match the door event. Please confirm whether this parcel is yours before any handoff or unlock narrative.",
+      "sampleRef": "GUEST-10421",
+      "identityClaim": "no_confident_visitor_identity",
+      "needsClarification": true
+    },
+    "approval": {
+      "ok": false,
+      "reason": "needs_clarification",
+      "message": "This proposal still needs clarification — it is not approvable yet."
+    }
+  },
+  "allReadsFailed": {
+    "planId": "plan_5",
+    "status": "draft",
+    "recipient": {
+      "name": "household",
+      "role": "clarification"
+    },
+    "action": "ask_clarification",
+    "timing": {
+      "windowLabel": "Awaiting reliable inspection (SAST)",
+      "timezone": "Africa/Johannesburg"
+    },
+    "observations": [
+      "inspection reads failed or empty — clarification required"
+    ],
+    "assumptions": [
+      "Inspection tools did not return usable evidence"
+    ],
+    "explanation": "Household inspection failed or returned no usable evidence. I need a successful doorbell/order read (or your confirmation) before proposing an approvable handoff.",
+    "sampleRef": "GUEST-10421",
+    "identityClaim": "no_confident_visitor_identity",
+    "needsClarification": true
+  },
+  "actionBridgeFailure": {
+    "method": "Actual client and production runTool with injected fetch response and UI/timer stubs; not an end-to-end browser HTTP test",
+    "requests": [
+      {
+        "url": "http://127.0.0.1:8766/healthz",
+        "method": "GET",
+        "body": null
+      },
+      {
+        "url": "http://127.0.0.1:8766/demo/call",
+        "method": "POST",
+        "body": {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_changed",
+            "recipient": "Mira",
+            "action": "defer_handoff_parent",
+            "timing": "18:20-18:45 SAST",
+            "operationId": "op_client_probe"
+          }
+        }
+      }
+    ],
+    "mockCalled": false,
+    "returned": {
+      "ok": false,
+      "source": "bridge",
+      "operationId": "op_bridge_failure",
+      "tool": "notify.household",
+      "observations": null,
+      "outcome": null,
+      "error": {
+        "code": "bridge_failure",
+        "message": "Injected transport-boundary failure"
+      },
+      "meta": "bridge:bridge_failure · no mock fallback",
+      "failureKind": "bridge_failure"
+    },
+    "timeline": [
+      {
+        "index": 0,
+        "status": "err",
+        "meta": "bridge:bridge_failure · no mock fallback"
+      }
+    ]
+  }
+}

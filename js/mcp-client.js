@@ -1,7 +1,7 @@
 /**
  * Optional MCP HTTP bridge for Ops Concierge.
  * Offline-first: disabled unless OPS_MCP.enabled or localStorage OPS_USE_MCP=1.
- * Falls back silently when the self-hosted server is down.
+ * Preserves structured bridge errors; null means bridge unavailable before attempt.
  */
 (function (global) {
   "use strict";
@@ -52,9 +52,54 @@
     return cachedHealthy;
   }
 
+  function normalizeBridgePayload(data, httpStatus) {
+    if (!data || typeof data !== "object") {
+      return {
+        ok: false,
+        source: "bridge",
+        operationId: null,
+        tool: null,
+        observations: null,
+        outcome: null,
+        error: {
+          code: "bridge_http_" + String(httpStatus || "error"),
+          message: "Bridge returned non-JSON or empty error body"
+        },
+        meta: "bridge failure",
+        failureKind: "bridge_failure",
+        attempted: true
+      };
+    }
+    var ok = data.ok === true;
+    var err = data.error;
+    if (!err && !ok) {
+      err = {
+        code: data.failureKind || "bridge_failure",
+        message: data.meta || "Bridge tool failed"
+      };
+    }
+    return {
+      ok: ok,
+      source: data.source || "bridge",
+      operationId: data.operationId || null,
+      tool: data.tool || null,
+      observations: data.observations || (data.detail && data.detail.observations) || null,
+      outcome: data.outcome || data.detail || null,
+      error: ok ? null : err,
+      meta: data.meta || (ok ? "bridge ok" : "bridge failure"),
+      failureKind: data.failureKind || (ok ? null : (err && err.code) || "bridge_failure"),
+      fallback: data.fallback,
+      detail: data.detail || data,
+      attempted: true
+    };
+  }
+
   /**
    * Call a product tool via the JSON demo bridge.
-   * @returns {Promise<{meta: string, detail?: object}|null>} null => caller should use mock
+   * @returns {Promise<object|null>}
+   *   null → bridge unavailable before attempt (caller may use labelled mock for reads)
+   *   object with ok:false + attempted → bridge was reached; do NOT mock mutations
+   *   object with ok:true → bridge success
    */
   async function callTool(name, argumentsObj) {
     if (!readFlag()) return null;
@@ -73,18 +118,56 @@
         signal: ctrl ? ctrl.signal : undefined
       });
       if (timer) clearTimeout(timer);
-      if (!res.ok) {
-        cachedHealthy = false;
-        return null;
+
+      var data = null;
+      try {
+        data = await res.json();
+      } catch (_parseErr) {
+        data = null;
       }
-      var data = await res.json();
-      if (!data || data.ok === false) return null;
+
+      if (!res.ok) {
+        /* Preserve structured JSON errors — never collapse HTTP 500 + body to null. */
+        if (data && typeof data === "object") {
+          return normalizeBridgePayload(data, res.status);
+        }
+        cachedHealthy = false;
+        return {
+          ok: false,
+          source: "bridge",
+          operationId: null,
+          tool: name,
+          observations: null,
+          outcome: null,
+          error: {
+            code: "bridge_http_" + res.status,
+            message: "Bridge HTTP " + res.status + " with no JSON body"
+          },
+          meta: "bridge HTTP " + res.status,
+          failureKind: "bridge_failure",
+          attempted: true
+        };
+      }
+
+      var normalized = normalizeBridgePayload(data, res.status);
+      if (!normalized.ok) {
+        return normalized;
+      }
       return {
-        meta: data.meta || name + " · mcp",
-        detail: data.detail || data
+        ok: true,
+        source: normalized.source || "bridge",
+        operationId: normalized.operationId,
+        tool: normalized.tool || name,
+        observations: normalized.observations,
+        outcome: normalized.outcome,
+        error: null,
+        meta: normalized.meta || name + " · mcp",
+        detail: normalized.detail || data,
+        attempted: true
       };
     } catch (_err) {
       cachedHealthy = false;
+      /* Transport abort/network before a usable tool body — treat as unavailable. */
       return null;
     }
   }
@@ -95,4 +178,4 @@
     probeHealth: probeHealth,
     callTool: callTool
   };
-})(window);
+})(typeof window !== "undefined" ? window : globalThis);

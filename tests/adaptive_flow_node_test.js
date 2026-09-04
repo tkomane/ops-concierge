@@ -404,3 +404,159 @@ describe("Intent+State integration — refuse vs approve path", () => {
     assert.equal(store.getProposal().status, "confirmed");
   });
 });
+
+
+describe("OpsIntent — bounded consent (corrections 003)", () => {
+  let OpsIntent;
+  beforeEach(() => {
+    ({ OpsIntent } = loadScripts());
+  });
+
+  it("Confirm whether… and Approve only if… are not approve", () => {
+    assert.equal(OpsIntent.classify("Confirm whether Mira is available").intent, "ask_info");
+    assert.equal(OpsIntent.classify("Approve only if the parcel is ours").intent, "ask_info");
+  });
+
+  it("Approve plan_1 carries explicit planId", () => {
+    const c = OpsIntent.classify("Approve plan_1");
+    assert.equal(c.intent, "approve");
+    assert.equal(c.planId, "plan_1");
+  });
+});
+
+describe("OpsPlanner — typed evidence (corrections 003)", () => {
+  let OpsPlanner;
+  beforeEach(() => {
+    ({ OpsPlanner } = loadScripts());
+    OpsPlanner._resetSeq(0);
+  });
+
+  it("motion:false / parcelVisual:false are negatives", () => {
+    const ev = OpsPlanner.evidenceAssessment([
+      {
+        ok: true,
+        tool: "ring.query",
+        observations: { motion: false, parcelVisual: false },
+        outcome: {},
+        error: null
+      },
+      {
+        ok: true,
+        tool: "order.lookup",
+        observations: { eta: "16:00-18:00 SAST" },
+        outcome: {},
+        error: null
+      }
+    ]);
+    assert.equal(ev.hasRingMotion, false);
+    assert.equal(ev.hasParcelVisual, false);
+    assert.equal(ev.canClaimVisitorIdentity, false);
+  });
+
+  it("calendar neighbourAvailable:false changes recipient and timing", () => {
+    const event = {
+      ok: true,
+      tool: "ring.query",
+      observations: { motion: true, parcelVisual: true },
+      outcome: {},
+      error: null
+    };
+    const order = {
+      ok: true,
+      tool: "order.lookup",
+      observations: { eta: "16:00-18:00 SAST" },
+      outcome: {},
+      error: null
+    };
+    const a = OpsPlanner.buildProposal({
+      storyId: "doorstep",
+      results: [event, order, { ok: true, tool: "calendar.propose", observations: { proposed: "18:00-18:30 SAST", neighbourAvailable: true }, outcome: {}, error: null }]
+    });
+    const b = OpsPlanner.buildProposal({
+      storyId: "doorstep",
+      results: [event, order, { ok: true, tool: "calendar.propose", observations: { proposed: "20:00-20:30 SAST", neighbourAvailable: false }, outcome: {}, error: null }]
+    });
+    assert.equal(a.recipient.name, "Thabo");
+    assert.equal(b.recipient.name, "Mira");
+    assert.notEqual(a.timing.windowLabel, b.timing.windowLabel);
+  });
+
+  it("mismatched / failed reads are not approvable", () => {
+    const { OpsState } = loadScripts();
+    OpsPlanner._resetSeq(0);
+    const mismatched = OpsPlanner.buildProposal({
+      storyId: "doorstep",
+      results: [
+        { ok: true, tool: "ring.query", observations: { motion: true, parcelVisual: true }, outcome: {}, error: null },
+        { ok: true, tool: "order.lookup", observations: { matched: false, eta: "16:00-18:00 SAST" }, outcome: {}, error: null }
+      ]
+    });
+    assert.equal(mismatched.needsClarification, true);
+    const store = OpsState.createStore();
+    store.startStory("doorstep");
+    store.setProposal(mismatched);
+    const approval = store.approve(mismatched.planId);
+    assert.equal(approval.ok, false);
+    assert.equal(approval.reason, "needs_clarification");
+
+    const failed = OpsPlanner.buildProposal({
+      storyId: "doorstep",
+      results: [
+        { ok: false, tool: "ring.query", observations: null, outcome: null, error: { code: "x", message: "fail" } },
+        { ok: false, tool: "order.lookup", observations: null, outcome: null, error: { code: "x", message: "fail" } }
+      ]
+    });
+    assert.equal(failed.needsClarification, true);
+    assert.equal(failed.action, "ask_clarification");
+  });
+
+  it("bedtime Mira unavailable changes recipient away from Mira", () => {
+    const first = OpsPlanner.buildProposal({ storyId: "bedtime", results: [] });
+    assert.equal(first.recipient.name, "Mira");
+    const { proposal } = OpsPlanner.replan({
+      storyId: "bedtime",
+      results: [],
+      priorProposal: first,
+      facts: { miraAvailable: false, caregiverAvailable: false }
+    });
+    assert.notEqual(proposal.recipient.name, "Mira");
+    assert.equal(proposal.action, "auto_pause_firetv");
+  });
+});
+
+describe("OpsState — full session persistence (corrections 003)", () => {
+  it("setUiState survives save/load with messages tools lastResults", () => {
+    const { OpsState, OpsPlanner, OPS_SCENARIOS } = loadScripts();
+    OpsPlanner._resetSeq(0);
+    const mem = {
+      getItem() { return this._v || null; },
+      setItem(k, v) { this._v = String(v); },
+      removeItem() { this._v = null; }
+    };
+    const store = OpsState.createStore({ scenarios: OPS_SCENARIOS, storage: mem });
+    store.startStory("doorstep");
+    const p = OpsPlanner.buildProposal({
+      storyId: "doorstep",
+      results: [
+        { ok: true, tool: "ring.query", observations: { motion: true, parcelVisual: true }, outcome: {}, error: null }
+      ]
+    });
+    store.setProposal(p);
+    store.setUiState({
+      messages: [{ role: "user", text: "hi", at: "t" }],
+      tools: [{ name: "ring.query", status: "ok", meta: "m", at: "t" }],
+      lastResults: [{ ok: true, tool: "ring.query" }],
+      phase: "proposed"
+    });
+    store.bumpAction("notify");
+    store.save();
+    const store2 = OpsState.createStore({ scenarios: OPS_SCENARIOS, storage: mem });
+    assert.equal(store2.load().ok, true);
+    const snap = store2.getSession("doorstep");
+    assert.equal(snap.messages.length, 1);
+    assert.equal(snap.tools.length, 1);
+    assert.equal(snap.lastResults.length, 1);
+    assert.equal(snap.actionCounts.notify, 1);
+    assert.equal(snap.selectedPlanId, p.planId);
+  });
+});

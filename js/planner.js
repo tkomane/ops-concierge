@@ -19,6 +19,20 @@
     planSeq = typeof n === "number" ? n : 0;
   }
 
+  /** Keep plan ids unique across reload when prior proposals are restored. */
+  function ensureSeqAtLeast(n) {
+    var v = typeof n === "number" ? n : parseInt(n, 10);
+    if (!isFinite(v) || v < 0) return planSeq;
+    if (v > planSeq) planSeq = v;
+    return planSeq;
+  }
+
+  function noteExistingPlanId(planId) {
+    if (!planId || typeof planId !== "string") return;
+    var m = planId.match(/^plan_(\d+)$/i);
+    if (m) ensureSeqAtLeast(parseInt(m[1], 10));
+  }
+
   function asArray(v) {
     if (!v) return [];
     return Array.isArray(v) ? v.slice() : [v];
@@ -74,8 +88,24 @@
     return out;
   }
 
+  function truthyTyped(v) {
+    return v === true || v === 1 || v === "true" || v === "yes";
+  }
+
+  function falsyTyped(v) {
+    return v === false || v === 0 || v === "false" || v === "no";
+  }
+
+  function readObs(r) {
+    if (!r) return {};
+    var o = r.observations;
+    if (!o || typeof o !== "object" || Array.isArray(o)) return {};
+    return o;
+  }
+
   /**
-   * Evidence strength for visitor identity.
+   * Evidence strength for visitor identity — typed observations only.
+   * motion:false / parcelVisual:false are negatives, never positives via JSON string search.
    * Order ETA / expected delivery alone is insufficient.
    */
   function evidenceAssessment(results) {
@@ -86,51 +116,68 @@
     var hasOrderMatchHint = false;
     var hasMismatch = false;
     var hasInsufficient = false;
+    var anyOkRead = false;
+    var anyFailedRead = false;
+    var calendarProposed = null;
+    var calendarNeighbourAvailable = undefined;
 
     list.forEach(function (r) {
       if (!r) return;
+      if (r.ok === false) {
+        anyFailedRead = true;
+        return;
+      }
+      anyOkRead = true;
       var tool = (r.tool || "").toLowerCase();
-      var obs = r.observations || {};
-      var blob =
-        JSON.stringify(obs).toLowerCase() +
-        " " +
-        String(r.meta || "").toLowerCase() +
-        " " +
-        JSON.stringify(r.outcome || {}).toLowerCase();
+      var obs = readObs(r);
+      var outcome = r.outcome && typeof r.outcome === "object" ? r.outcome : {};
 
-      if (tool.indexOf("ring") !== -1 || blob.indexOf("ring") !== -1) {
-        if (
-          blob.indexOf("motion") !== -1 ||
-          blob.indexOf("person") !== -1 ||
-          blob.indexOf("parcel") !== -1 ||
-          blob.indexOf("package") !== -1 ||
-          blob.indexOf("cardboard") !== -1
-        ) {
+      if (tool.indexOf("ring") !== -1) {
+        if (Object.prototype.hasOwnProperty.call(obs, "motion")) {
+          if (truthyTyped(obs.motion)) hasRingMotion = true;
+          /* explicit false stays false */
+        } else if (truthyTyped(obs.person) || truthyTyped(obs.detected)) {
+          hasRingMotion = true;
+        } else if (typeof obs.summary === "string" && /\bmotion\b|\bperson\b/i.test(obs.summary) && !/\bno motion\b|\bmotion:\s*false\b/i.test(obs.summary)) {
           hasRingMotion = true;
         }
-        if (blob.indexOf("parcel") !== -1 || blob.indexOf("package") !== -1 || blob.indexOf("box") !== -1) {
+        if (Object.prototype.hasOwnProperty.call(obs, "parcelVisual")) {
+          if (truthyTyped(obs.parcelVisual)) hasParcelVisual = true;
+        } else if (Object.prototype.hasOwnProperty.call(obs, "parcel")) {
+          if (truthyTyped(obs.parcel)) hasParcelVisual = true;
+        } else if (typeof obs.summary === "string" && /\bparcel\b|\bpackage\b|\bcardboard\b/i.test(obs.summary)) {
           hasParcelVisual = true;
         }
       }
-      if (tool.indexOf("order") !== -1 || blob.indexOf("eta") !== -1 || blob.indexOf("amzl") !== -1) {
-        hasOrderEta = true;
-        if (blob.indexOf("match") !== -1 || blob.indexOf("silhouette") !== -1) {
+
+      if (tool.indexOf("order") !== -1) {
+        if (obs.eta || outcome.eta || obs.carrier || /amzl/i.test(String(obs.summary || ""))) {
+          hasOrderEta = true;
+        }
+        if (truthyTyped(obs.matched) || truthyTyped(outcome.matched) || truthyTyped(obs.matchHint) || truthyTyped(obs.silhouetteMatch)) {
           hasOrderMatchHint = true;
         }
+        if (falsyTyped(obs.matched) || falsyTyped(outcome.matched)) {
+          hasMismatch = true;
+        }
       }
-      if (
-        blob.indexOf("mismatch") !== -1 ||
-        blob.indexOf("does not match") !== -1 ||
-        obs.matched === false ||
-        (r.outcome && r.outcome.matched === false)
-      ) {
+
+      if (tool.indexOf("calendar") !== -1) {
+        if (obs.proposed) calendarProposed = String(obs.proposed);
+        else if (outcome.proposed) calendarProposed = String(outcome.proposed);
+        if (Object.prototype.hasOwnProperty.call(obs, "neighbourAvailable")) {
+          calendarNeighbourAvailable = !!obs.neighbourAvailable && !falsyTyped(obs.neighbourAvailable);
+          if (falsyTyped(obs.neighbourAvailable)) calendarNeighbourAvailable = false;
+        } else if (Object.prototype.hasOwnProperty.call(outcome, "neighbourAvailable")) {
+          calendarNeighbourAvailable = !falsyTyped(outcome.neighbourAvailable) && !!outcome.neighbourAvailable;
+          if (falsyTyped(outcome.neighbourAvailable)) calendarNeighbourAvailable = false;
+        }
+      }
+
+      if (obs.mismatch === true || outcome.mismatch === true || falsyTyped(obs.matched)) {
         hasMismatch = true;
       }
-      if (
-        blob.indexOf("insufficient") !== -1 ||
-        obs.insufficient === true ||
-        (r.outcome && r.outcome.insufficient === true)
-      ) {
+      if (obs.insufficient === true || outcome.insufficient === true) {
         hasInsufficient = true;
       }
     });
@@ -154,7 +201,12 @@
       hasOrderMatchHint: hasOrderMatchHint,
       hasMismatch: hasMismatch,
       hasInsufficient: hasInsufficient,
-      canClaimVisitorIdentity: identityClaimOk
+      canClaimVisitorIdentity: identityClaimOk,
+      anyOkRead: anyOkRead,
+      anyFailedRead: anyFailedRead,
+      allReadsFailed: anyFailedRead && !anyOkRead,
+      calendarProposed: calendarProposed,
+      calendarNeighbourAvailable: calendarNeighbourAvailable
     };
   }
 
@@ -164,13 +216,14 @@
 
   function defaultDoorstepPlan(ctx) {
     var facts = ctx.facts || {};
+    var evidence = ctx.evidence || {};
     var neighbourUnavailable =
       facts.neighbourAvailable === false ||
       facts.neighbourUnavailable === true ||
+      evidence.calendarNeighbourAvailable === false ||
       (facts.unavailable && String(facts.unavailable).toLowerCase().indexOf("neighbour") !== -1) ||
       (facts.unavailable && String(facts.unavailable).toLowerCase().indexOf("thabo") !== -1);
 
-    var evidence = ctx.evidence || {};
     var observations = ctx.observations.slice();
     var assumptions = [];
     var recipient;
@@ -178,47 +231,82 @@
     var timing;
     var explanation;
     var sampleRef = ctx.sampleRef !== undefined ? ctx.sampleRef : "GUEST-10421";
+    var needsClarification = false;
+    var calendarWindow = evidence.calendarProposed || null;
 
-    if (neighbourUnavailable) {
+    if (evidence.allReadsFailed || (evidence.anyFailedRead && !evidence.hasRingMotion && !evidence.hasParcelVisual && !evidence.hasOrderEta)) {
+      needsClarification = true;
+      recipient = { name: "household", role: "clarification" };
+      action = "ask_clarification";
+      timing = {
+        windowLabel: calendarWindow || "Awaiting reliable inspection (SAST)",
+        timezone: "Africa/Johannesburg"
+      };
+      assumptions.push("Inspection tools did not return usable evidence");
+      explanation =
+        "Household inspection failed or returned no usable evidence. I need a successful doorbell/order read (or your confirmation) before proposing an approvable handoff.";
+      if (!observations.length) {
+        observations.push("inspection reads failed or empty — clarification required");
+      }
+    } else if (evidence.hasMismatch || evidence.hasInsufficient || (!evidence.hasRingMotion && !evidence.hasParcelVisual && evidence.hasOrderEta)) {
+      needsClarification = true;
+      recipient = { name: "household", role: "clarification" };
+      action = "ask_clarification";
+      timing = {
+        windowLabel: calendarWindow || "Clarify before handoff (SAST)",
+        timezone: "Africa/Johannesburg"
+      };
+      assumptions.push("Visitor identity is not verified from order ETA alone");
+      if (evidence.hasMismatch) {
+        assumptions.push("Order evidence is mismatched with the door event");
+        explanation =
+          "Order evidence does not match the door event. Please confirm whether this parcel is yours before any handoff or unlock narrative.";
+      } else {
+        explanation =
+          "Evidence is insufficient for a confident visitor claim. Please clarify who is at the door before approving a handoff.";
+      }
+    } else if (neighbourUnavailable) {
       recipient = { name: "Mira", role: "parent" };
       action = "defer_handoff_parent";
       timing = {
-        windowLabel: "Parent claim window today 18:20–18:45 SAST",
+        windowLabel: calendarWindow
+          ? ("Parent claim window " + calendarWindow)
+          : "Parent claim window today 18:20–18:45 SAST",
         timezone: "Africa/Johannesburg"
       };
       assumptions.push("Parent A (Mira) is free after school pickup ~18:20");
       assumptions.push("Parcel can wait briefly on stoop until Mira arrives");
+      assumptions.push("Neighbour Thabo is unavailable — not listed as active backup");
       explanation =
         "Neighbour Thabo is unavailable, so the handoff shifts to Mira’s return window instead of a leave-with guest card.";
     } else {
       recipient = { name: "Thabo", role: "neighbour" };
       action = "notify_handoff";
       timing = {
-        windowLabel: "Neighbour leave-with 18:00–18:30 SAST",
+        windowLabel: calendarWindow
+          ? ("Neighbour leave-with " + calendarWindow)
+          : "Neighbour leave-with 18:00–18:30 SAST",
         timezone: "Africa/Johannesburg"
       };
-      assumptions.push("Neighbour usually available after 19:00 is stale — using leave-with window 18:00–18:30");
+      assumptions.push(
+        calendarWindow
+          ? ("Using calendar-proposed leave-with window " + calendarWindow)
+          : "Neighbour usually available after 19:00 is stale — using leave-with window 18:00–18:30"
+      );
       assumptions.push("Thabo is pre-authorised for gate/guest handoff in household context");
       explanation =
         "Ring motion plus an expected AMZL stop suggest a parcel handoff; propose notifying neighbour Thabo while Mira is still at pickup.";
     }
 
-    if (!evidence.canClaimVisitorIdentity) {
+    if (!evidence.canClaimVisitorIdentity && !needsClarification) {
       assumptions.push("Visitor identity is not verified from order ETA alone");
-      if (evidence.hasMismatch || evidence.hasInsufficient) {
-        explanation =
-          "Evidence is insufficient or mismatched for a confident visitor claim — proposal stays cautious and asks for clarification before any unlock narrative.";
-      } else if (evidence.hasOrderEta && !evidence.hasRingMotion) {
-        explanation =
-          "An expected delivery window is not enough to identify who is at the door. Waiting on doorbell evidence before treating this as a verified handoff.";
-      }
     }
 
-    if (!observations.length) {
-      observations.push("simulated household inspection complete");
+    if (!observations.length && !needsClarification) {
+      observations.push("household inspection complete");
     }
 
-    return {
+    var proposal = {
       planId: nextPlanId(),
       status: "draft",
       recipient: recipient,
@@ -232,6 +320,10 @@
         ? "correlated_parcel_evidence"
         : "no_confident_visitor_identity"
     };
+    if (needsClarification) {
+      proposal.needsClarification = true;
+    }
+    return proposal;
   }
 
   function defaultBedtimePlan(ctx) {
@@ -378,6 +470,8 @@
     canClaimVisitorIdentity: canClaimVisitorIdentity,
     evidenceAssessment: evidenceAssessment,
     nextPlanId: nextPlanId,
+    ensureSeqAtLeast: ensureSeqAtLeast,
+    noteExistingPlanId: noteExistingPlanId,
     _resetSeq: _resetSeq
   };
 

@@ -1001,7 +1001,7 @@ a.mark { border-radius: 10px; }
     justify-content: flex-start;
     gap: 8px;
   }
-  .sim-badge { display: none; } /* declutter narrow */
+  .sim-badge { display: inline-flex; } /* keep simulation marker visible on narrow */
   .hero {
     padding: clamp(24px, 5vh, 40px) 0 clamp(16px, 2.5vh, 24px);
   }
@@ -1472,7 +1472,7 @@ html[data-story="bedtime"] .how-bedtime-path {
 @media (max-height: 780px) {
   html[data-compact="1"] .how-strip { display: none; }
   html[data-compact="1"] .mark-sub { display: none; }
-  html[data-compact="1"] .sim-badge { display: none; }
+  html[data-compact="1"] .sim-badge { display: inline-flex; }
 }
 
 /* When ticketed: keep trophy near top of board scroll */
