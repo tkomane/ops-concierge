@@ -1,7 +1,7 @@
 # Feature 003 NEXT corrections — evidence pack
 
 **Base HEAD (required):** `677a432b50c6dedcafc67e24ace78b2b9572abf9` (`677a432`)  
-**Fix tip SHA:** *(stamped after commit below)*  
+**Fix tip SHA:** `89fe12787c7f4c3f39bb7b74beff34572e6a1a60` (`89fe127`)  
 **Timezone:** Africa/Johannesburg (SAST)  
 **Date:** 5 September 2026  
 
