@@ -1,7 +1,7 @@
 # Feature 003 P1 — uncertain-operation retry correction — evidence pack
 
 **Base HEAD:** `e246503926db0ff98849b1f7c20cb742d5327e7c` (`e246503`)  
-**Fix tip SHA:** `e0a35b1e8eea48898720684daf5fd1978d96ae08` (`e0a35b1`)  
+**Fix tip SHA:** `c7a8551a0c88a56f9ae17d2738774a9483cd9063` (`c7a8551`)
 **Timezone:** Africa/Johannesburg (SAST)  
 **Date:** 5 September 2026  
 
