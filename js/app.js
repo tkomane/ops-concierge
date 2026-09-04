@@ -114,6 +114,59 @@
     return "op_" + (tool || "x").replace(/\./g, "_") + "_" + opSeq;
   }
 
+  function operationDisposition(result) {
+    if (!result || typeof result !== "object") return null;
+    var kind = result.failureKind || (result.error && result.error.code) || null;
+    if (kind === "unknown_after_dispatch" || kind === "bridge_unknown_after_dispatch") {
+      return "unknown";
+    }
+    if (result.ok === false) return "failed";
+    if (result.ok === true) return "resolved";
+    return null;
+  }
+
+  /** Bind retries to the original execution source for uncertain/attempted bridge ops. */
+  function operationBoundToBridge(entry) {
+    if (!entry || typeof entry !== "object") return false;
+    if (entry.source === "bridge") return true;
+    if (entry.disposition === "unknown") return true;
+    var kind = entry.failureKind || null;
+    if (kind === "unknown_after_dispatch" || kind === "bridge_unknown_after_dispatch") {
+      return true;
+    }
+    if (entry.attempted && entry.source !== "mock") return true;
+    return false;
+  }
+
+  function operationProgressFields(status, operationId, result, prior) {
+    var patch = { status: status, operationId: operationId };
+    prior = prior || null;
+    if (!result || typeof result !== "object") {
+      if (prior && prior.disposition === "unknown" && status !== "done") {
+        patch.disposition = "unknown";
+        if (prior.source) patch.source = prior.source;
+        if (prior.failureKind) patch.failureKind = prior.failureKind;
+        if (prior.attempted) patch.attempted = true;
+      }
+      return patch;
+    }
+    if (result.source) patch.source = result.source;
+    var kind = result.failureKind || (result.error && result.error.code) || null;
+    if (kind) patch.failureKind = kind;
+    if (result.attempted) patch.attempted = true;
+    var disp = operationDisposition(result);
+    /* Keep unknown disposition until the operation resolves honestly (status done). */
+    if (prior && prior.disposition === "unknown" && status !== "done") {
+      patch.disposition = "unknown";
+      if (prior.source) patch.source = prior.source;
+      if (prior.failureKind) patch.failureKind = prior.failureKind;
+      patch.attempted = true;
+    } else if (disp) {
+      patch.disposition = disp;
+    }
+    return patch;
+  }
+
   function persistDemo() {
     if (!store) return;
     try {
@@ -930,8 +983,11 @@
         /* labelled fallthrough to mock for reads */
       }
     }
-    /* Mutations that already attempted the bridge must not reach mock success. */
-    if (isMutationTool(name) && opts.bridgeAttemptedFail) {
+    /* Mutations bound to bridge (attempted/uncertain/requireBridge) must not reach mock success. */
+    if (
+      isMutationTool(name) &&
+      (opts.bridgeAttemptedFail || opts.requireBridge || opts.noMockOnBridgeDown)
+    ) {
       const fail = {
         ok: false,
         source: "bridge",
@@ -939,7 +995,12 @@
         tool: name,
         observations: null,
         outcome: null,
-        error: { code: "bridge_failure", message: "Bridge mutation failed; mock blocked" },
+        error: {
+          code: opts.bridgeAttemptedFail ? "bridge_failure" : "bridge_unavailable",
+          message: opts.bridgeAttemptedFail
+            ? "Bridge mutation failed; mock blocked"
+            : "Bridge required for this operation; mock blocked"
+        },
         meta: "FAIL · bridge mutation · mock blocked"
       };
       updateTool(i, "err", fail.meta);
@@ -1927,6 +1988,7 @@
       }
       const notifyOpId =
         (progress.notify && progress.notify.operationId) || nextOpId("notify.household");
+      const notifyRequireBridge = operationBoundToBridge(progress.notify);
       if (store && store.setOperationProgress) {
         store.setOperationProgress(planId, "notify", {
           status: "pending",
@@ -1941,7 +2003,7 @@
           observations: { summary: "notify queued" },
           outcome: { queued: true }
         }),
-        { requireBridge: false, operationId: notifyOpId }
+        { requireBridge: notifyRequireBridge, operationId: notifyOpId }
       );
 
       if (!notify.ok) {
@@ -1950,10 +2012,16 @@
         if (store) {
           store.markFailed(notify.error);
           if (store.setOperationProgress) {
-            store.setOperationProgress(planId, "notify", {
-              status: "failed",
-              operationId: notifyOpId
-            });
+            store.setOperationProgress(
+              planId,
+              "notify",
+              operationProgressFields(
+                "failed",
+                notify.operationId || notifyOpId,
+                notify,
+                progress.notify
+              )
+            );
           }
         }
         if (state.proposal) state.proposal = Object.assign({}, state.proposal, { status: "draft" });
@@ -1975,10 +2043,11 @@
       if (store) {
         store.bumpAction("notify");
         if (store.setOperationProgress) {
-          store.setOperationProgress(planId, "notify", {
-            status: "done",
-            operationId: notify.operationId || notifyOpId
-          });
+          store.setOperationProgress(
+            planId,
+            "notify",
+            operationProgressFields("done", notify.operationId || notifyOpId, notify, progress.notify)
+          );
         }
       }
       progress = store && store.getOperationProgress ? store.getOperationProgress(planId) : progress;
@@ -1998,6 +2067,7 @@
     let opened = null;
     if (!taskDone) {
       const taskOpId = (progress.task && progress.task.operationId) || nextOpId("task.open");
+      const taskRequireBridge = operationBoundToBridge(progress.task);
       if (store && store.setOperationProgress) {
         store.setOperationProgress(planId, "task", {
           status: "pending",
@@ -2012,7 +2082,7 @@
           observations: { summary: "handoff card opened", status: "draft" },
           outcome: { id: state.scenario.ticket.id, status: "draft" }
         }),
-        { requireBridge: false, operationId: taskOpId }
+        { requireBridge: taskRequireBridge, operationId: taskOpId }
       );
 
       if (!opened.ok) {
@@ -2021,10 +2091,16 @@
         if (store) {
           store.markFailed(opened.error);
           if (store.setOperationProgress) {
-            store.setOperationProgress(planId, "task", {
-              status: "failed",
-              operationId: taskOpId
-            });
+            store.setOperationProgress(
+              planId,
+              "task",
+              operationProgressFields(
+                "failed",
+                opened.operationId || taskOpId,
+                opened,
+                progress.task
+              )
+            );
           }
         }
         pushMsg(
@@ -2045,10 +2121,11 @@
       if (store) {
         store.bumpAction("task");
         if (store.setOperationProgress) {
-          store.setOperationProgress(planId, "task", {
-            status: "done",
-            operationId: opened.operationId || taskOpId
-          });
+          store.setOperationProgress(
+            planId,
+            "task",
+            operationProgressFields("done", opened.operationId || taskOpId, opened, progress.task)
+          );
         }
       }
     } else {

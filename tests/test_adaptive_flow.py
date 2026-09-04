@@ -82,3 +82,33 @@ def test_adaptive_flow_node_suite():
         )
     # node --test prints "# pass N" on success
     assert "fail 0" in proc.stdout or "# fail 0" in proc.stdout or proc.returncode == 0
+
+
+UNKNOWN_RETRY_NODE_TEST = ROOT / "tests" / "unknown_retry_node_test.js"
+
+
+def test_app_binds_uncertain_retries_to_bridge_source():
+    app = (ROOT / "js" / "app.js").read_text(encoding="utf-8")
+    assert "function operationBoundToBridge(" in app
+    assert "function operationProgressFields(" in app
+    assert "notifyRequireBridge" in app
+    assert "taskRequireBridge" in app
+    assert 'disposition: "unknown"' in app or "disposition === \"unknown\"" in app
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_unknown_retry_node_suite():
+    assert UNKNOWN_RETRY_NODE_TEST.is_file()
+    proc = subprocess.run(
+        ["node", "--test", str(UNKNOWN_RETRY_NODE_TEST)],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if proc.returncode != 0:
+        raise AssertionError(
+            "unknown retry node --test failed\n"
+            f"stdout:\n{proc.stdout}\n"
+            f"stderr:\n{proc.stderr}"
+        )

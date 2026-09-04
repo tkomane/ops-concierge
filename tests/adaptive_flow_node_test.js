@@ -684,3 +684,54 @@ describe("OpsState — operation progress (NEXT)", () => {
     assert.equal(prog.task.operationId, "op_task_stable");
   });
 });
+
+describe("OpsState — uncertain operation progress (retry correction)", () => {
+  it("persists source, disposition, failureKind, attempted across save/load", () => {
+    const { OpsState, OpsPlanner, OPS_SCENARIOS } = loadScripts();
+    OpsPlanner._resetSeq(0);
+    const mem = {
+      getItem() { return this._v || null; },
+      setItem(k, v) { this._v = String(v); },
+      removeItem() { this._v = null; }
+    };
+    const store = OpsState.createStore({ scenarios: OPS_SCENARIOS, storage: mem });
+    store.startStory("doorstep");
+    const p = OpsPlanner.buildProposal({
+      storyId: "doorstep",
+      results: [
+        { ok: true, tool: "ring.query", observations: { motion: true, parcelVisual: true }, outcome: {}, error: null },
+        { ok: true, tool: "order.lookup", observations: { eta: "16:00-18:00 SAST", carrier: "AMZL" }, outcome: {}, error: null }
+      ]
+    });
+    store.setProposal(p);
+    store.setOperationProgress(p.planId, "notify", {
+      status: "failed",
+      operationId: "op_notify_household_1",
+      source: "bridge",
+      failureKind: "unknown_after_dispatch",
+      attempted: true,
+      disposition: "unknown"
+    });
+    store.setOperationProgress(p.planId, "task", {
+      status: "failed",
+      operationId: "op_task_open_2",
+      source: "bridge",
+      failureKind: "unknown_after_dispatch",
+      attempted: true,
+      disposition: "unknown"
+    });
+    store.save();
+    const store2 = OpsState.createStore({ scenarios: OPS_SCENARIOS, storage: mem });
+    assert.equal(store2.load().ok, true);
+    store2.switchStory("doorstep");
+    const prog = store2.getOperationProgress(p.planId);
+    assert.equal(prog.notify.source, "bridge");
+    assert.equal(prog.notify.disposition, "unknown");
+    assert.equal(prog.notify.failureKind, "unknown_after_dispatch");
+    assert.equal(prog.notify.attempted, true);
+    assert.equal(prog.notify.operationId, "op_notify_household_1");
+    assert.equal(prog.task.source, "bridge");
+    assert.equal(prog.task.disposition, "unknown");
+    assert.equal(prog.task.operationId, "op_task_open_2");
+  });
+});

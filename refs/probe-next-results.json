@@ -1,0 +1,1292 @@
+{
+  "checkout": "/workspace/ops-concierge",
+  "conditionals": [
+    {
+      "intent": "ask_info",
+      "utterance": "Go ahead if the parcel is ours",
+      "normalized": "go ahead if the parcel is ours",
+      "reason": "unresolved_condition_or_question",
+      "planId": null
+    },
+    {
+      "intent": "ask_info",
+      "utterance": "Do it after Mira confirms",
+      "normalized": "do it after mira confirms",
+      "reason": "unresolved_condition_or_question",
+      "planId": null
+    },
+    {
+      "intent": "ask_info",
+      "utterance": "Yes, approve if Mira is available",
+      "normalized": "yes, approve if mira is available",
+      "reason": "unresolved_condition_or_question",
+      "planId": null
+    },
+    {
+      "intent": "ask_info",
+      "utterance": "Approve plan_1 when Mira confirms",
+      "normalized": "approve plan_1 when mira confirms",
+      "reason": "unresolved_condition_or_question",
+      "planId": "plan_1"
+    }
+  ],
+  "uncertainty": {
+    "no_results": {
+      "proposal": {
+        "planId": "plan_2",
+        "status": "draft",
+        "recipient": {
+          "name": "household",
+          "role": "clarification"
+        },
+        "action": "ask_clarification",
+        "timing": {
+          "windowLabel": "Awaiting reliable inspection (SAST)",
+          "timezone": "Africa/Johannesburg"
+        },
+        "observations": [
+          "inspection reads failed, empty, or insufficient — clarification required"
+        ],
+        "assumptions": [
+          "Inspection tools did not return usable evidence",
+          "No positive door/parcel observation is available",
+          "Visitor identity is not verified from order ETA alone"
+        ],
+        "explanation": "Household inspection is missing, negative, unknown, or failed. I need a successful doorbell event plus a successful order read before proposing an approvable handoff.",
+        "sampleRef": "GUEST-10421",
+        "identityClaim": "no_confident_visitor_identity",
+        "needsClarification": true
+      },
+      "approval": {
+        "ok": false,
+        "reason": "needs_clarification",
+        "message": "This proposal still needs clarification — it is not approvable yet."
+      }
+    },
+    "false_event_no_order": {
+      "proposal": {
+        "planId": "plan_3",
+        "status": "draft",
+        "recipient": {
+          "name": "household",
+          "role": "clarification"
+        },
+        "action": "ask_clarification",
+        "timing": {
+          "windowLabel": "Awaiting reliable inspection (SAST)",
+          "timezone": "Africa/Johannesburg"
+        },
+        "observations": [
+          "motion: false",
+          "parcelVisual: false"
+        ],
+        "assumptions": [
+          "Inspection tools did not return usable evidence",
+          "No positive door/parcel observation is available",
+          "Visitor identity is not verified from order ETA alone"
+        ],
+        "explanation": "Household inspection is missing, negative, unknown, or failed. I need a successful doorbell event plus a successful order read before proposing an approvable handoff.",
+        "sampleRef": "GUEST-10421",
+        "identityClaim": "no_confident_visitor_identity",
+        "needsClarification": true
+      },
+      "approval": {
+        "ok": false,
+        "reason": "needs_clarification",
+        "message": "This proposal still needs clarification — it is not approvable yet."
+      }
+    },
+    "order_failed": {
+      "proposal": {
+        "planId": "plan_4",
+        "status": "draft",
+        "recipient": {
+          "name": "household",
+          "role": "clarification"
+        },
+        "action": "ask_clarification",
+        "timing": {
+          "windowLabel": "Awaiting reliable inspection (SAST)",
+          "timezone": "Africa/Johannesburg"
+        },
+        "observations": [
+          "motion: true",
+          "parcelVisual: true"
+        ],
+        "assumptions": [
+          "Inspection tools did not return usable evidence",
+          "At least one required inspection read failed"
+        ],
+        "explanation": "Household inspection is missing, negative, unknown, or failed. I need a successful doorbell event plus a successful order read before proposing an approvable handoff.",
+        "sampleRef": "GUEST-10421",
+        "identityClaim": "no_confident_visitor_identity",
+        "needsClarification": true
+      },
+      "approval": {
+        "ok": false,
+        "reason": "needs_clarification",
+        "message": "This proposal still needs clarification — it is not approvable yet."
+      }
+    },
+    "all_bedtime_reads_failed": {
+      "proposal": {
+        "planId": "plan_5",
+        "status": "draft",
+        "recipient": {
+          "name": "household",
+          "role": "clarification"
+        },
+        "action": "ask_clarification",
+        "timing": {
+          "windowLabel": "Awaiting reliable bedtime inspection (SAST)",
+          "timezone": "Africa/Johannesburg"
+        },
+        "observations": [
+          "bedtime inspection failed or empty — clarification required"
+        ],
+        "assumptions": [
+          "Bedtime inspection tools did not return usable evidence"
+        ],
+        "explanation": "Bedtime inspection reads are missing or failed. I need at least one successful device/presence read before proposing an approvable caregiver action.",
+        "sampleRef": "TASK-22018",
+        "identityClaim": "n/a_bedtime",
+        "needsClarification": true
+      },
+      "approval": {
+        "ok": false,
+        "reason": "needs_clarification",
+        "message": "This proposal still needs clarification — it is not approvable yet."
+      }
+    }
+  },
+  "droppedResponse": {
+    "method": "Production client and runner; injected fetch rejection after recording POST",
+    "calls": [
+      {
+        "tool": "notify.household",
+        "arguments": {
+          "scenario": "doorstep",
+          "planId": "plan_1",
+          "recipient": "Mira",
+          "recipientRole": "parent",
+          "action": "defer_handoff_parent",
+          "timing": "Parent claim window today 18:20–18:45 SAST",
+          "operationId": "op_notify_household_1"
+        }
+      }
+    ],
+    "mockCalled": false,
+    "result": {
+      "ok": false,
+      "source": "bridge",
+      "operationId": "op_notify_household_1",
+      "tool": "notify.household",
+      "observations": null,
+      "outcome": null,
+      "error": {
+        "code": "bridge_unknown_after_dispatch",
+        "message": "Bridge request may have been sent but no usable response was received (fetch failed after request dispatch)"
+      },
+      "meta": "bridge unknown after dispatch · no mock fallback · no mock fallback",
+      "failureKind": "unknown_after_dispatch",
+      "attempted": true
+    },
+    "timeline": [
+      {
+        "name": "notify.household",
+        "status": "err",
+        "meta": "bridge unknown after dispatch · no mock fallback · no mock fallback"
+      }
+    ]
+  },
+  "retry": {
+    "method": "Production client, runner, approval coordinator and store; injected HTTP responses",
+    "reload": false,
+    "first": {
+      "phase": "failed",
+      "counts": {
+        "notify": 1,
+        "task": 0
+      },
+      "messages": [
+        {
+          "role": "user",
+          "text": "approve"
+        },
+        {
+          "role": "agent",
+          "text": "Approval recorded. Queuing a simulated household nudge, then opening the handoff card…"
+        },
+        {
+          "role": "agent",
+          "text": "Handoff card could not be opened — no false success. Source: bridge. First task attempt failed Notification already queued once; retry will not re-send unless you reset."
+        }
+      ],
+      "tools": [
+        {
+          "name": "notify.household",
+          "status": "ok",
+          "meta": "notify.household ok · bridge"
+        },
+        {
+          "name": "task.open",
+          "status": "err",
+          "meta": "task failed · no mock fallback"
+        }
+      ]
+    },
+    "afterRetry": {
+      "phase": "acted",
+      "counts": {
+        "notify": 1,
+        "task": 1
+      },
+      "calls": [
+        {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_notify_household_1"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_task_open_2"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "failed_task"
+          }
+        }
+      ],
+      "messages": [
+        {
+          "role": "user",
+          "text": "approve"
+        },
+        {
+          "role": "agent",
+          "text": "Approval recorded. Queuing a simulated household nudge, then opening the handoff card…"
+        },
+        {
+          "role": "agent",
+          "text": "Handoff card could not be opened — no false success. Source: bridge. First task attempt failed Notification already queued once; retry will not re-send unless you reset."
+        },
+        {
+          "role": "user",
+          "text": "approve"
+        },
+        {
+          "role": "agent",
+          "text": "Notification already queued for this plan — resuming unfinished card open (no re-send)."
+        },
+        {
+          "role": "agent",
+          "text": "Handoff for Mira recorded. Notification source: resumed. Card/tool status from backend: draft (approval confirmed; artefact status remains draft). Sample ref GUEST-10421 is ready to copy — it is not a gate credential."
+        }
+      ],
+      "proposal": {
+        "planId": "plan_1",
+        "status": "confirmed",
+        "recipient": {
+          "name": "Mira",
+          "role": "parent"
+        },
+        "action": "defer_handoff_parent",
+        "timing": {
+          "windowLabel": "Parent claim window today 18:20–18:45 SAST",
+          "timezone": "Africa/Johannesburg"
+        },
+        "observations": [
+          "motion: true",
+          "parcelVisual: true",
+          "eta: 16:00-18:00 SAST"
+        ],
+        "assumptions": [
+          "Parent A (Mira) is free after school pickup ~18:20",
+          "Parcel can wait briefly on stoop until Mira arrives",
+          "Neighbour Thabo is unavailable — not listed as active backup"
+        ],
+        "explanation": "Neighbour Thabo is unavailable, so the handoff shifts to Mira’s return window instead of a leave-with guest card.",
+        "sampleRef": "GUEST-10421",
+        "identityClaim": "correlated_parcel_evidence",
+        "artefactStatus": "draft"
+      },
+      "artifact": "SIMULATED HANDOFF PLAN (sample reference — not a gate credential)\nSample ref:  GUEST-10421\nTitle:       Simulated handoff plan — claim Amazon parcel at front door (sample ref)\nStatus:      draft\nApproval:    confirmed\nRecipient:   Mira (parent)\nAction:      defer_handoff_parent\nTiming:      Parent claim window today 18:20–18:45 SAST\nTimezone:    Africa/Johannesburg (SAST, UTC+2)\n\nObservations:\n  - motion: true\n  - parcelVisual: true\n  - eta: 16:00-18:00 SAST\nAssumptions:\n  - Parent A (Mira) is free after school pickup ~18:20\n  - Parcel can wait briefly on stoop until Mira arrives\n  - Neighbour Thabo is unavailable — not listed as active backup\n\nPrimary:     Courier at the stoop with a sealed Amazon box @ 2026-09-04 17:42 SAST\nSecondary:   Same-day AMZL — Echo Dot Kids for Lebo @ 2026-09-04 14:05 SAST\n\nOpened by Ops Concierge (Alexa+ simulation) session review-session\nHousehold: Tshiamo Komane — Africa/Johannesburg\nNote:       Sample reference only — not an unlock / door credential"
+    }
+  },
+  "retryAfterReload": {
+    "method": "Production client, runner, approval coordinator and store; injected HTTP responses",
+    "reload": true,
+    "first": {
+      "phase": "failed",
+      "counts": {
+        "notify": 1,
+        "task": 0
+      },
+      "messages": [
+        {
+          "role": "user",
+          "text": "approve"
+        },
+        {
+          "role": "agent",
+          "text": "Approval recorded. Queuing a simulated household nudge, then opening the handoff card…"
+        },
+        {
+          "role": "agent",
+          "text": "Handoff card could not be opened — no false success. Source: bridge. First task attempt failed Notification already queued once; retry will not re-send unless you reset."
+        }
+      ],
+      "tools": [
+        {
+          "name": "notify.household",
+          "status": "ok",
+          "meta": "notify.household ok · bridge"
+        },
+        {
+          "name": "task.open",
+          "status": "err",
+          "meta": "task failed · no mock fallback"
+        }
+      ]
+    },
+    "afterRetry": {
+      "phase": "acted",
+      "counts": {
+        "notify": 1,
+        "task": 1
+      },
+      "calls": [
+        {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_notify_household_1"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_task_open_2"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "failed_task"
+          }
+        }
+      ],
+      "messages": [
+        {
+          "role": "user",
+          "text": "approve"
+        },
+        {
+          "role": "agent",
+          "text": "Approval recorded. Queuing a simulated household nudge, then opening the handoff card…"
+        },
+        {
+          "role": "agent",
+          "text": "Handoff card could not be opened — no false success. Source: bridge. First task attempt failed Notification already queued once; retry will not re-send unless you reset."
+        },
+        {
+          "role": "user",
+          "text": "approve"
+        },
+        {
+          "role": "agent",
+          "text": "Notification already queued for this plan — resuming unfinished card open (no re-send)."
+        },
+        {
+          "role": "agent",
+          "text": "Handoff for Mira recorded. Notification source: resumed. Card/tool status from backend: draft (approval confirmed; artefact status remains draft). Sample ref GUEST-10421 is ready to copy — it is not a gate credential."
+        }
+      ],
+      "proposal": {
+        "planId": "plan_1",
+        "status": "confirmed",
+        "recipient": {
+          "name": "Mira",
+          "role": "parent"
+        },
+        "action": "defer_handoff_parent",
+        "timing": {
+          "windowLabel": "Parent claim window today 18:20–18:45 SAST",
+          "timezone": "Africa/Johannesburg"
+        },
+        "observations": [
+          "motion: true",
+          "parcelVisual: true",
+          "eta: 16:00-18:00 SAST"
+        ],
+        "assumptions": [
+          "Parent A (Mira) is free after school pickup ~18:20",
+          "Parcel can wait briefly on stoop until Mira arrives",
+          "Neighbour Thabo is unavailable — not listed as active backup"
+        ],
+        "explanation": "Neighbour Thabo is unavailable, so the handoff shifts to Mira’s return window instead of a leave-with guest card.",
+        "sampleRef": "GUEST-10421",
+        "identityClaim": "correlated_parcel_evidence",
+        "artefactStatus": "draft"
+      },
+      "artifact": "SIMULATED HANDOFF PLAN (sample reference — not a gate credential)\nSample ref:  GUEST-10421\nTitle:       Simulated handoff plan — claim Amazon parcel at front door (sample ref)\nStatus:      draft\nApproval:    confirmed\nRecipient:   Mira (parent)\nAction:      defer_handoff_parent\nTiming:      Parent claim window today 18:20–18:45 SAST\nTimezone:    Africa/Johannesburg (SAST, UTC+2)\n\nObservations:\n  - motion: true\n  - parcelVisual: true\n  - eta: 16:00-18:00 SAST\nAssumptions:\n  - Parent A (Mira) is free after school pickup ~18:20\n  - Parcel can wait briefly on stoop until Mira arrives\n  - Neighbour Thabo is unavailable — not listed as active backup\n\nPrimary:     Courier at the stoop with a sealed Amazon box @ 2026-09-04 17:42 SAST\nSecondary:   Same-day AMZL — Echo Dot Kids for Lebo @ 2026-09-04 14:05 SAST\n\nOpened by Ops Concierge (Alexa+ simulation) session review-session\nHousehold: Tshiamo Komane — Africa/Johannesburg\nNote:       Sample reference only — not an unlock / door credential"
+    }
+  },
+  "unknownRetry": {
+    "method": "Production client, runner, coordinator and store; POST rejection followed by unavailable bridge",
+    "reload": false,
+    "first": {
+      "phase": "failed",
+      "lastResult": {
+        "ok": false,
+        "source": "bridge",
+        "operationId": "op_notify_household_1",
+        "tool": "notify.household",
+        "observations": null,
+        "outcome": null,
+        "error": {
+          "code": "bridge_unknown_after_dispatch",
+          "message": "Bridge request may have been sent but no usable response was received (Connection lost after POST dispatch)"
+        },
+        "meta": "bridge unknown after dispatch · no mock fallback · no mock fallback",
+        "failureKind": "unknown_after_dispatch",
+        "attempted": true
+      },
+      "progress": {
+        "notify": {
+          "status": "failed",
+          "operationId": "op_notify_household_1",
+          "source": "bridge",
+          "failureKind": "unknown_after_dispatch",
+          "attempted": true,
+          "disposition": "unknown"
+        }
+      }
+    },
+    "afterRetry": {
+      "phase": "failed",
+      "counts": {
+        "notify": 0,
+        "task": 0
+      },
+      "results": [
+        {
+          "ok": false,
+          "source": "bridge",
+          "operationId": "op_notify_household_1",
+          "tool": "notify.household",
+          "observations": null,
+          "outcome": null,
+          "error": {
+            "code": "bridge_unknown_after_dispatch",
+            "message": "Bridge request may have been sent but no usable response was received (Connection lost after POST dispatch)"
+          },
+          "meta": "bridge unknown after dispatch · no mock fallback · no mock fallback",
+          "failureKind": "unknown_after_dispatch",
+          "attempted": true
+        },
+        {
+          "ok": false,
+          "source": "bridge",
+          "operationId": "op_notify_household_1",
+          "tool": "notify.household",
+          "observations": null,
+          "outcome": null,
+          "error": {
+            "code": "bridge_unavailable",
+            "message": "Bridge unavailable before attempt"
+          },
+          "meta": "FAIL · bridge unavailable · labelled (no silent success)"
+        }
+      ],
+      "progress": {
+        "notify": {
+          "status": "failed",
+          "operationId": "op_notify_household_1",
+          "source": "bridge",
+          "failureKind": "unknown_after_dispatch",
+          "attempted": true,
+          "disposition": "unknown"
+        }
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "healthOk": true
+        },
+        {
+          "method": "POST",
+          "request": {
+            "tool": "notify.household",
+            "arguments": {
+              "scenario": "doorstep",
+              "planId": "plan_1",
+              "recipient": "Mira",
+              "recipientRole": "parent",
+              "action": "defer_handoff_parent",
+              "timing": "Parent claim window today 18:20–18:45 SAST",
+              "operationId": "op_notify_household_1"
+            }
+          }
+        }
+      ],
+      "messages": [
+        {
+          "role": "user",
+          "text": "approve"
+        },
+        {
+          "role": "agent",
+          "text": "Approval recorded. Queuing a simulated household nudge, then opening the handoff card…"
+        },
+        {
+          "role": "agent",
+          "text": "Action failed — no false success. Source: bridge. Bridge request may have been sent but no usable response was received (Connection lost after POST dispatch) Recovery: fix the helper link, retry approval, or decline. Notification was not mocked as success."
+        },
+        {
+          "role": "user",
+          "text": "approve"
+        },
+        {
+          "role": "agent",
+          "text": "Approval recorded. Queuing a simulated household nudge, then opening the handoff card…"
+        },
+        {
+          "role": "agent",
+          "text": "Action failed — no false success. Source: bridge. Bridge unavailable before attempt Recovery: fix the helper link, retry approval, or decline. Notification was not mocked as success."
+        }
+      ],
+      "artifact": "SIMULATED HANDOFF PLAN (sample reference — not a gate credential)\nSample ref:  GUEST-10421\nTitle:       Simulated handoff plan — claim Amazon parcel at front door (sample ref)\nStatus:      draft\nApproval:    draft\nRecipient:   Mira (parent)\nAction:      defer_handoff_parent\nTiming:      Parent claim window today 18:20–18:45 SAST\nTimezone:    Africa/Johannesburg (SAST, UTC+2)\n\nObservations:\n  - motion: true\n  - parcelVisual: true\n  - eta: 16:00-18:00 SAST\nAssumptions:\n  - Parent A (Mira) is free after school pickup ~18:20\n  - Parcel can wait briefly on stoop until Mira arrives\n  - Neighbour Thabo is unavailable — not listed as active backup\n\nPrimary:     Courier at the stoop with a sealed Amazon box @ 2026-09-04 17:42 SAST\nSecondary:   Same-day AMZL — Echo Dot Kids for Lebo @ 2026-09-04 14:05 SAST\n\nOpened by Ops Concierge (Alexa+ simulation) session review-session\nHousehold: Tshiamo Komane — Africa/Johannesburg\nNote:       Sample reference only — not an unlock / door credential"
+    }
+  },
+  "unknownRetryAfterReload": {
+    "method": "Production client, runner, coordinator and store; POST rejection followed by unavailable bridge",
+    "reload": true,
+    "first": {
+      "phase": "failed",
+      "lastResult": {
+        "ok": false,
+        "source": "bridge",
+        "operationId": "op_notify_household_1",
+        "tool": "notify.household",
+        "observations": null,
+        "outcome": null,
+        "error": {
+          "code": "bridge_unknown_after_dispatch",
+          "message": "Bridge request may have been sent but no usable response was received (Connection lost after POST dispatch)"
+        },
+        "meta": "bridge unknown after dispatch · no mock fallback · no mock fallback",
+        "failureKind": "unknown_after_dispatch",
+        "attempted": true
+      },
+      "progress": {
+        "notify": {
+          "status": "failed",
+          "operationId": "op_notify_household_1",
+          "source": "bridge",
+          "failureKind": "unknown_after_dispatch",
+          "attempted": true,
+          "disposition": "unknown"
+        }
+      }
+    },
+    "afterRetry": {
+      "phase": "failed",
+      "counts": {
+        "notify": 0,
+        "task": 0
+      },
+      "results": [
+        {
+          "ok": false,
+          "source": "bridge",
+          "operationId": "op_notify_household_1",
+          "tool": "notify.household",
+          "observations": null,
+          "outcome": null,
+          "error": {
+            "code": "bridge_unknown_after_dispatch",
+            "message": "Bridge request may have been sent but no usable response was received (Connection lost after POST dispatch)"
+          },
+          "meta": "bridge unknown after dispatch · no mock fallback · no mock fallback",
+          "failureKind": "unknown_after_dispatch",
+          "attempted": true
+        },
+        {
+          "ok": false,
+          "source": "bridge",
+          "operationId": "op_notify_household_1",
+          "tool": "notify.household",
+          "observations": null,
+          "outcome": null,
+          "error": {
+            "code": "bridge_unavailable",
+            "message": "Bridge unavailable before attempt"
+          },
+          "meta": "FAIL · bridge unavailable · labelled (no silent success)"
+        }
+      ],
+      "progress": {
+        "notify": {
+          "status": "failed",
+          "operationId": "op_notify_household_1",
+          "source": "bridge",
+          "failureKind": "unknown_after_dispatch",
+          "attempted": true,
+          "disposition": "unknown"
+        }
+      },
+      "calls": [
+        {
+          "method": "GET",
+          "healthOk": true
+        },
+        {
+          "method": "POST",
+          "request": {
+            "tool": "notify.household",
+            "arguments": {
+              "scenario": "doorstep",
+              "planId": "plan_1",
+              "recipient": "Mira",
+              "recipientRole": "parent",
+              "action": "defer_handoff_parent",
+              "timing": "Parent claim window today 18:20–18:45 SAST",
+              "operationId": "op_notify_household_1"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "healthOk": false
+        }
+      ],
+      "messages": [
+        {
+          "role": "user",
+          "text": "approve"
+        },
+        {
+          "role": "agent",
+          "text": "Approval recorded. Queuing a simulated household nudge, then opening the handoff card…"
+        },
+        {
+          "role": "agent",
+          "text": "Action failed — no false success. Source: bridge. Bridge request may have been sent but no usable response was received (Connection lost after POST dispatch) Recovery: fix the helper link, retry approval, or decline. Notification was not mocked as success."
+        },
+        {
+          "role": "user",
+          "text": "approve"
+        },
+        {
+          "role": "agent",
+          "text": "Approval recorded. Queuing a simulated household nudge, then opening the handoff card…"
+        },
+        {
+          "role": "agent",
+          "text": "Action failed — no false success. Source: bridge. Bridge unavailable before attempt Recovery: fix the helper link, retry approval, or decline. Notification was not mocked as success."
+        }
+      ],
+      "artifact": "SIMULATED HANDOFF PLAN (sample reference — not a gate credential)\nSample ref:  GUEST-10421\nTitle:       Simulated handoff plan — claim Amazon parcel at front door (sample ref)\nStatus:      draft\nApproval:    draft\nRecipient:   Mira (parent)\nAction:      defer_handoff_parent\nTiming:      Parent claim window today 18:20–18:45 SAST\nTimezone:    Africa/Johannesburg (SAST, UTC+2)\n\nObservations:\n  - motion: true\n  - parcelVisual: true\n  - eta: 16:00-18:00 SAST\nAssumptions:\n  - Parent A (Mira) is free after school pickup ~18:20\n  - Parcel can wait briefly on stoop until Mira arrives\n  - Neighbour Thabo is unavailable — not listed as active backup\n\nPrimary:     Courier at the stoop with a sealed Amazon box @ 2026-09-04 17:42 SAST\nSecondary:   Same-day AMZL — Echo Dot Kids for Lebo @ 2026-09-04 14:05 SAST\n\nOpened by Ops Concierge (Alexa+ simulation) session review-session\nHousehold: Tshiamo Komane — Africa/Johannesburg\nNote:       Sample reference only — not an unlock / door credential"
+    }
+  },
+  "actualHttp": {
+    "method": "Production client and runner against actual localhost MCP demo bridge; action payload checks are independent of the inspection-derived proposal",
+    "calls": [
+      {
+        "url": "http://127.0.0.1:8766/healthz",
+        "request": null,
+        "status": 200,
+        "response": {
+          "status": "ok",
+          "service": "ops-concierge-mcp",
+          "version": "0.1.0",
+          "transport": "streamable-http",
+          "tools": [
+            "ring.query",
+            "order.lookup",
+            "session.ack",
+            "calendar.propose",
+            "notify.household",
+            "task.open"
+          ]
+        }
+      },
+      {
+        "url": "http://127.0.0.1:8766/demo/call",
+        "request": {
+          "tool": "ring.query",
+          "arguments": {
+            "zone": "stoop",
+            "scenario": "doorstep"
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "source": "bridge",
+          "operationId": "op_970521411c8d",
+          "tool": "ring.query",
+          "meta": "HIT ring-front-door / zone: stoop",
+          "detail": {
+            "zone": "stoop",
+            "resource": "ring-front-door / zone: stoop",
+            "title": "Motion + package at front door",
+            "signal": "Person detected with cardboard parcel. Live view idle. Last unlock: none in 90m. Ambient light: dusk.",
+            "simulated": true,
+            "observations": {
+              "motion": true,
+              "parcelVisual": true,
+              "zone": "stoop",
+              "summary": "Motion + package at front door · parcel-shaped cardboard"
+            }
+          },
+          "observations": {
+            "motion": true,
+            "parcelVisual": true,
+            "zone": "stoop",
+            "summary": "Motion + package at front door · parcel-shaped cardboard"
+          },
+          "outcome": {
+            "zone": "stoop",
+            "resource": "ring-front-door / zone: stoop",
+            "title": "Motion + package at front door",
+            "signal": "Person detected with cardboard parcel. Live view idle. Last unlock: none in 90m. Ambient light: dusk.",
+            "simulated": true,
+            "observations": {
+              "motion": true,
+              "parcelVisual": true,
+              "zone": "stoop",
+              "summary": "Motion + package at front door · parcel-shaped cardboard"
+            }
+          },
+          "error": null
+        }
+      },
+      {
+        "url": "http://127.0.0.1:8766/demo/call",
+        "request": {
+          "tool": "order.lookup",
+          "arguments": {
+            "scenario": "doorstep"
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "source": "bridge",
+          "operationId": "op_aea8f8703172",
+          "tool": "order.lookup",
+          "meta": "HIT order 702-8842101-4419284 / ship: AMZL",
+          "detail": {
+            "order_id": "order 702-8842101-4419284",
+            "resource": "order 702-8842101-4419284 / ship: AMZL",
+            "title": "Same-day delivery expected — Echo Dot Kids",
+            "signal": "Out for delivery · ETA window 16:00–18:00 SAST · Signature not required · Destination: Home · Front door.",
+            "simulated": true,
+            "observations": {
+              "eta": "16:00–18:00 SAST",
+              "carrier": "AMZL",
+              "matched": null,
+              "summary": "AMZL stop nearby / expected delivery window"
+            }
+          },
+          "observations": {
+            "eta": "16:00–18:00 SAST",
+            "carrier": "AMZL",
+            "matched": null,
+            "summary": "AMZL stop nearby / expected delivery window"
+          },
+          "outcome": {
+            "order_id": "order 702-8842101-4419284",
+            "resource": "order 702-8842101-4419284 / ship: AMZL",
+            "title": "Same-day delivery expected — Echo Dot Kids",
+            "signal": "Out for delivery · ETA window 16:00–18:00 SAST · Signature not required · Destination: Home · Front door.",
+            "simulated": true,
+            "observations": {
+              "eta": "16:00–18:00 SAST",
+              "carrier": "AMZL",
+              "matched": null,
+              "summary": "AMZL stop nearby / expected delivery window"
+            }
+          },
+          "error": null
+        }
+      },
+      {
+        "url": "http://127.0.0.1:8766/demo/call",
+        "request": {
+          "tool": "session.ack",
+          "arguments": {
+            "session_id": "review-session",
+            "artefact_hint": "GUEST-10421"
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "source": "bridge",
+          "operationId": "op_13831b5af70e",
+          "tool": "session.ack",
+          "meta": "ACK GUEST-10421 (review-session)",
+          "detail": {
+            "session_id": "review-session",
+            "artefact_hint": "GUEST-10421",
+            "acked": true,
+            "simulated": true,
+            "observations": {
+              "summary": "ACK GUEST-10421 (review-session)",
+              "acked": true
+            }
+          },
+          "observations": {
+            "summary": "ACK GUEST-10421 (review-session)",
+            "acked": true
+          },
+          "outcome": {
+            "session_id": "review-session",
+            "artefact_hint": "GUEST-10421",
+            "acked": true,
+            "simulated": true,
+            "observations": {
+              "summary": "ACK GUEST-10421 (review-session)",
+              "acked": true
+            }
+          },
+          "error": null
+        }
+      },
+      {
+        "url": "http://127.0.0.1:8766/demo/call",
+        "request": {
+          "tool": "calendar.propose",
+          "arguments": {
+            "scenario": "doorstep"
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "source": "bridge",
+          "operationId": "op_5505b172f305",
+          "tool": "calendar.propose",
+          "meta": "Secure handoff window today 18:20–18:45 SAST",
+          "detail": {
+            "proposed": "Secure handoff window today 18:20–18:45 SAST",
+            "alternate": "Neighbour leave-with 18:00–18:30 SAST (pre-authorised gate code)",
+            "timezone": "Africa/Johannesburg (SAST, UTC+2)",
+            "simulated": true,
+            "observations": {
+              "proposed": "Secure handoff window today 18:20–18:45 SAST",
+              "alternate": "Neighbour leave-with 18:00–18:30 SAST (pre-authorised gate code)",
+              "timezone": "Africa/Johannesburg (SAST, UTC+2)",
+              "summary": "Secure handoff window today 18:20–18:45 SAST",
+              "neighbourAvailable": true
+            }
+          },
+          "observations": {
+            "proposed": "Secure handoff window today 18:20–18:45 SAST",
+            "alternate": "Neighbour leave-with 18:00–18:30 SAST (pre-authorised gate code)",
+            "timezone": "Africa/Johannesburg (SAST, UTC+2)",
+            "summary": "Secure handoff window today 18:20–18:45 SAST",
+            "neighbourAvailable": true
+          },
+          "outcome": {
+            "proposed": "Secure handoff window today 18:20–18:45 SAST",
+            "alternate": "Neighbour leave-with 18:00–18:30 SAST (pre-authorised gate code)",
+            "timezone": "Africa/Johannesburg (SAST, UTC+2)",
+            "simulated": true,
+            "observations": {
+              "proposed": "Secure handoff window today 18:20–18:45 SAST",
+              "alternate": "Neighbour leave-with 18:00–18:30 SAST (pre-authorised gate code)",
+              "timezone": "Africa/Johannesburg (SAST, UTC+2)",
+              "summary": "Secure handoff window today 18:20–18:45 SAST",
+              "neighbourAvailable": true
+            }
+          },
+          "error": null
+        }
+      },
+      {
+        "url": "http://127.0.0.1:8766/demo/call",
+        "request": {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_notify_household_5"
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "source": "bridge",
+          "operationId": "op_notify_household_5",
+          "tool": "notify.household",
+          "meta": "notify queued · household-shared-list · to Mira · sim",
+          "detail": {
+            "channel": "household-shared-list",
+            "message": "Parcel at front door — claim window proposed (sim). → Mira (parent) · action=defer_handoff_parent · timing=Parent claim window today 18:20–18:45 SAST · plan=plan_1",
+            "queued": true,
+            "simulated": true,
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "observations": {
+              "summary": "notify queued · household-shared-list · to Mira · sim",
+              "queued": true,
+              "recipient": "Mira"
+            },
+            "operationId": "op_notify_household_5"
+          },
+          "observations": {
+            "summary": "notify queued · household-shared-list · to Mira · sim",
+            "queued": true,
+            "recipient": "Mira"
+          },
+          "outcome": {
+            "channel": "household-shared-list",
+            "message": "Parcel at front door — claim window proposed (sim). → Mira (parent) · action=defer_handoff_parent · timing=Parent claim window today 18:20–18:45 SAST · plan=plan_1",
+            "queued": true,
+            "simulated": true,
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "observations": {
+              "summary": "notify queued · household-shared-list · to Mira · sim",
+              "queued": true,
+              "recipient": "Mira"
+            },
+            "operationId": "op_notify_household_5"
+          },
+          "error": null
+        }
+      },
+      {
+        "url": "http://127.0.0.1:8766/demo/call",
+        "request": {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_task_open_6"
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "source": "bridge",
+          "operationId": "op_task_open_6",
+          "tool": "task.open",
+          "meta": "GUEST-10421 draft",
+          "detail": {
+            "id": "GUEST-10421",
+            "title": "Simulated handoff plan — claim Amazon parcel at front door (sample ref) · for Mira (parent)",
+            "status": "draft",
+            "simulated": true,
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "observations": {
+              "summary": "GUEST-10421 draft",
+              "id": "GUEST-10421",
+              "status": "draft",
+              "recipient": "Mira",
+              "action": "defer_handoff_parent"
+            },
+            "operationId": "op_task_open_6"
+          },
+          "observations": {
+            "summary": "GUEST-10421 draft",
+            "id": "GUEST-10421",
+            "status": "draft",
+            "recipient": "Mira",
+            "action": "defer_handoff_parent"
+          },
+          "outcome": {
+            "id": "GUEST-10421",
+            "title": "Simulated handoff plan — claim Amazon parcel at front door (sample ref) · for Mira (parent)",
+            "status": "draft",
+            "simulated": true,
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "observations": {
+              "summary": "GUEST-10421 draft",
+              "id": "GUEST-10421",
+              "status": "draft",
+              "recipient": "Mira",
+              "action": "defer_handoff_parent"
+            },
+            "operationId": "op_task_open_6"
+          },
+          "error": null
+        }
+      }
+    ],
+    "inspection": [
+      {
+        "ok": true,
+        "source": "bridge",
+        "operationId": "op_970521411c8d",
+        "tool": "ring.query",
+        "observations": {
+          "motion": true,
+          "parcelVisual": true,
+          "zone": "stoop",
+          "summary": "Motion + package at front door · parcel-shaped cardboard"
+        },
+        "outcome": {
+          "zone": "stoop",
+          "resource": "ring-front-door / zone: stoop",
+          "title": "Motion + package at front door",
+          "signal": "Person detected with cardboard parcel. Live view idle. Last unlock: none in 90m. Ambient light: dusk.",
+          "simulated": true,
+          "observations": {
+            "motion": true,
+            "parcelVisual": true,
+            "zone": "stoop",
+            "summary": "Motion + package at front door · parcel-shaped cardboard"
+          }
+        },
+        "error": null,
+        "meta": "HIT ring-front-door / zone: stoop · bridge"
+      },
+      {
+        "ok": true,
+        "source": "bridge",
+        "operationId": "op_aea8f8703172",
+        "tool": "order.lookup",
+        "observations": {
+          "eta": "16:00–18:00 SAST",
+          "carrier": "AMZL",
+          "matched": null,
+          "summary": "AMZL stop nearby / expected delivery window"
+        },
+        "outcome": {
+          "order_id": "order 702-8842101-4419284",
+          "resource": "order 702-8842101-4419284 / ship: AMZL",
+          "title": "Same-day delivery expected — Echo Dot Kids",
+          "signal": "Out for delivery · ETA window 16:00–18:00 SAST · Signature not required · Destination: Home · Front door.",
+          "simulated": true,
+          "observations": {
+            "eta": "16:00–18:00 SAST",
+            "carrier": "AMZL",
+            "matched": null,
+            "summary": "AMZL stop nearby / expected delivery window"
+          }
+        },
+        "error": null,
+        "meta": "HIT order 702-8842101-4419284 / ship: AMZL · bridge"
+      },
+      {
+        "ok": true,
+        "source": "bridge",
+        "operationId": "op_13831b5af70e",
+        "tool": "session.ack",
+        "observations": {
+          "summary": "ACK GUEST-10421 (review-session)",
+          "acked": true
+        },
+        "outcome": {
+          "session_id": "review-session",
+          "artefact_hint": "GUEST-10421",
+          "acked": true,
+          "simulated": true,
+          "observations": {
+            "summary": "ACK GUEST-10421 (review-session)",
+            "acked": true
+          }
+        },
+        "error": null,
+        "meta": "ACK GUEST-10421 (review-session) · bridge"
+      },
+      {
+        "ok": true,
+        "source": "bridge",
+        "operationId": "op_5505b172f305",
+        "tool": "calendar.propose",
+        "observations": {
+          "proposed": "Secure handoff window today 18:20–18:45 SAST",
+          "alternate": "Neighbour leave-with 18:00–18:30 SAST (pre-authorised gate code)",
+          "timezone": "Africa/Johannesburg (SAST, UTC+2)",
+          "summary": "Secure handoff window today 18:20–18:45 SAST",
+          "neighbourAvailable": true
+        },
+        "outcome": {
+          "proposed": "Secure handoff window today 18:20–18:45 SAST",
+          "alternate": "Neighbour leave-with 18:00–18:30 SAST (pre-authorised gate code)",
+          "timezone": "Africa/Johannesburg (SAST, UTC+2)",
+          "simulated": true,
+          "observations": {
+            "proposed": "Secure handoff window today 18:20–18:45 SAST",
+            "alternate": "Neighbour leave-with 18:00–18:30 SAST (pre-authorised gate code)",
+            "timezone": "Africa/Johannesburg (SAST, UTC+2)",
+            "summary": "Secure handoff window today 18:20–18:45 SAST",
+            "neighbourAvailable": true
+          }
+        },
+        "error": null,
+        "meta": "Secure handoff window today 18:20–18:45 SAST · bridge"
+      }
+    ],
+    "bridgeProposal": {
+      "planId": "plan_2",
+      "status": "draft",
+      "recipient": {
+        "name": "Thabo",
+        "role": "neighbour"
+      },
+      "action": "notify_handoff",
+      "timing": {
+        "windowLabel": "Neighbour leave-with Secure handoff window today 18:20–18:45 SAST",
+        "timezone": "Africa/Johannesburg"
+      },
+      "observations": [
+        "motion: true",
+        "parcelVisual: true",
+        "zone: stoop",
+        "summary: Motion + package at front door · parcel-shaped cardboard",
+        "eta: 16:00–18:00 SAST",
+        "carrier: AMZL",
+        "summary: AMZL stop nearby / expected delivery window",
+        "summary: ACK GUEST-10421 (review-session)",
+        "acked: true",
+        "proposed: Secure handoff window today 18:20–18:45 SAST",
+        "alternate: Neighbour leave-with 18:00–18:30 SAST (pre-authorised gate code)",
+        "timezone: Africa/Johannesburg (SAST, UTC+2)",
+        "summary: Secure handoff window today 18:20–18:45 SAST",
+        "neighbourAvailable: true",
+        "AMZL stop nearby / expected delivery window"
+      ],
+      "assumptions": [
+        "Using calendar-proposed leave-with window Secure handoff window today 18:20–18:45 SAST",
+        "Thabo is pre-authorised for gate/guest handoff in household context"
+      ],
+      "explanation": "Ring motion plus an expected AMZL stop suggest a parcel handoff; propose notifying neighbour Thabo while Mira is still at pickup.",
+      "sampleRef": "GUEST-10421",
+      "identityClaim": "correlated_parcel_evidence"
+    },
+    "outputs": [
+      {
+        "ok": true,
+        "source": "bridge",
+        "operationId": "op_notify_household_5",
+        "tool": "notify.household",
+        "observations": {
+          "summary": "notify queued · household-shared-list · to Mira · sim",
+          "queued": true,
+          "recipient": "Mira"
+        },
+        "outcome": {
+          "channel": "household-shared-list",
+          "message": "Parcel at front door — claim window proposed (sim). → Mira (parent) · action=defer_handoff_parent · timing=Parent claim window today 18:20–18:45 SAST · plan=plan_1",
+          "queued": true,
+          "simulated": true,
+          "planId": "plan_1",
+          "recipient": "Mira",
+          "recipientRole": "parent",
+          "action": "defer_handoff_parent",
+          "timing": "Parent claim window today 18:20–18:45 SAST",
+          "observations": {
+            "summary": "notify queued · household-shared-list · to Mira · sim",
+            "queued": true,
+            "recipient": "Mira"
+          },
+          "operationId": "op_notify_household_5"
+        },
+        "error": null,
+        "meta": "notify queued · household-shared-list · to Mira · sim · bridge"
+      },
+      {
+        "ok": true,
+        "source": "bridge",
+        "operationId": "op_task_open_6",
+        "tool": "task.open",
+        "observations": {
+          "summary": "GUEST-10421 draft",
+          "id": "GUEST-10421",
+          "status": "draft",
+          "recipient": "Mira",
+          "action": "defer_handoff_parent"
+        },
+        "outcome": {
+          "id": "GUEST-10421",
+          "title": "Simulated handoff plan — claim Amazon parcel at front door (sample ref) · for Mira (parent)",
+          "status": "draft",
+          "simulated": true,
+          "planId": "plan_1",
+          "recipient": "Mira",
+          "recipientRole": "parent",
+          "action": "defer_handoff_parent",
+          "timing": "Parent claim window today 18:20–18:45 SAST",
+          "observations": {
+            "summary": "GUEST-10421 draft",
+            "id": "GUEST-10421",
+            "status": "draft",
+            "recipient": "Mira",
+            "action": "defer_handoff_parent"
+          },
+          "operationId": "op_task_open_6"
+        },
+        "error": null,
+        "meta": "GUEST-10421 draft · bridge"
+      }
+    ]
+  }
+}
