@@ -1,6 +1,7 @@
 # Feature 003 corrections — evidence pack
 
-**Checkout tip (working tree):** corrections on top of `e2798c9`  
+**Pushed SHA:** `72749e01a1200e99a420bfffb83bc54bc63fb0c2` (`72749e0`)
+**Base before fix:** `e2798c9`  
 **Timezone:** Africa/Johannesburg (SAST)  
 **Date:** 5 September 2026  
 
