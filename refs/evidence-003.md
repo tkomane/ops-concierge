@@ -2,7 +2,7 @@
 
 **Date**: 2026-09-04 (Africa/Johannesburg)  
 **Base SHA (committed)**: `b264922a1b67952b16902cb3752dacd2df92f99d`  
-**Working tree**: uncommitted lead integration on `main` (local). Commit SHA for this batch: **PENDING** (not committed in this session).  
+**Commit SHA (this batch)**: `4947de4109c7a00da36f08f415085b909192d19d` on `main`.
 **Credit use**: unavailable in this environment.
 
 ## Spec paths
