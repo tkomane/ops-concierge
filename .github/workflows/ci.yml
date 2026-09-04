@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  static-check:
+    name: Static smoke checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify required files exist
+        run: |
+          set -euo pipefail
+          required=(
+            index.html
+            css/app.css
+            js/app.js
+            js/scenarios.js
+            serve.py
+            robots.txt
+            LICENSE
+            README.md
+          )
+          missing=0
+          for f in "${required[@]}"; do
+            if [[ ! -f "$f" ]]; then
+              echo "::error::Missing required file: $f"
+              missing=1
+            else
+              echo "OK: $f"
+            fi
+          done
+          exit "$missing"
+
+      - name: Verify HTML references css/app.css and js assets
+        run: |
+          set -euo pipefail
+          python3 << 'PY'
+          from pathlib import Path
+          import sys
+
+          html = Path("index.html").read_text(encoding="utf-8")
+          checks = [
+              ("css/app.css", 'href="css/app.css"' in html or "href='css/app.css'" in html),
+              ("js/scenarios.js", "js/scenarios.js" in html),
+              ("js/app.js", "js/app.js" in html),
+          ]
+          failed = False
+          for label, ok in checks:
+              if ok:
+                  print(f"OK: index.html references {label}")
+              else:
+                  print(f"::error::index.html does not reference {label}")
+                  failed = True
+
+          # Ensure referenced local assets exist on disk
+          for rel in ("css/app.css", "js/scenarios.js", "js/app.js"):
+              if not Path(rel).is_file():
+                  print(f"::error::Referenced asset missing on disk: {rel}")
+                  failed = True
+
+          sys.exit(1 if failed else 0)
+          PY
+
+      - name: Local HTTP smoke (python3 -m http.server + curl)
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8765 --bind 127.0.0.1 &
+          pid=$!
+          cleanup() { kill "$pid" 2>/dev/null || true; }
+          trap cleanup EXIT
+
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:8765/" >/tmp/ci-index.html; then
+              break
+            fi
+            sleep 0.2
+          done
+
+          test -s /tmp/ci-index.html
+          grep -q "css/app.css" /tmp/ci-index.html
+          grep -q "js/app.js" /tmp/ci-index.html
+
+          curl -fsS -o /dev/null -w "css/app.css HTTP %{http_code}\n" "http://127.0.0.1:8765/css/app.css" | tee /tmp/ci-css.status
+          grep -q "HTTP 200" /tmp/ci-css.status
+
+          curl -fsS -o /dev/null -w "js/app.js HTTP %{http_code}\n" "http://127.0.0.1:8765/js/app.js" | tee /tmp/ci-js.status
+          grep -q "HTTP 200" /tmp/ci-js.status
+
+          curl -fsS -o /dev/null -w "robots.txt HTTP %{http_code}\n" "http://127.0.0.1:8765/robots.txt" | tee /tmp/ci-robots.status
+          grep -q "HTTP 200" /tmp/ci-robots.status
+
+          echo "Smoke checks passed"

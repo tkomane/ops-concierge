@@ -2,7 +2,7 @@
 
 ![Household concierge UI](preview-demo.png)
 
-> *Linear × Apple Vision × modern Alexa — not a harsh mission-control dashboard.*
+> *x.ai-grade light restraint — pure white canvas, near-black type, vast whitespace — not a dark mission-control dashboard.*
 
 Session-stateful, agentic **Amazon household concierge** for the **Amazon Developer Hackathon 2026** — **Alexa+ simulated path** (Official Rules §4).
 
@@ -26,7 +26,7 @@ Or: `python3 serve.py` (same port).
 
 ## Product surface / what judges should see
 
-1. Premium shell: SAST clock, session ID, phase pill, **SIMULATION · NOT A LIVE ALEXA DEVICE** badge.
+1. Light cinematic shell: compact nav, airy hero, SAST clock, session ID, phase pill, **SIMULATION · NOT A LIVE ALEXA DEVICE** badge.
 2. Click **Run demo** or press D (doorstep delivery seed).
 3. Follow chips: Acknowledge → Correlate → Propose presence window → Open artefact.
 4. Tools timeline fires Amazon-native mocks: `ring.query`, `order.lookup`, `session.ack`, `calendar.propose`, `notify.household`, `task.open`.
@@ -57,7 +57,7 @@ Static, zero-build. `escapeHtml` on all dynamic text. CSP in index meta. No eval
 - `index.html`, `css/app.css`, `js/app.js`, `js/scenarios.js`, `favicon.svg`, `manifest.webmanifest`
 - `DEMO.md`, `FRICTION_LOG.md`, `PRODUCT_FEEDBACK.md`, `CONTRIBUTING.md`, `SECURITY.md`
 - `LICENSE` — MIT, Copyright (c) 2026 Tshiamo Komane
-- Design: soft charcoal elevated surfaces, luminous cyan accent, refined radius + ambient shadows
+- Design: pure white canvas, near-black typography, pill controls, thin light-gray borders, optional soft multi-hue underline accent — no cyan glow
 
 ## DevOps / Live demo
 

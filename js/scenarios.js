@@ -1,82 +1,94 @@
 window.OPS_SCENARIOS = {
-  portal: {
-    id: "portal",
-    title: "SA retail portal — hybrid blast radius",
-    spokenStart: "Run the Johannesburg retail portal incident.",
-    azure: {
-      source: "Azure Monitor / Service Health (simulated)",
-      sev: "crit",
-      title: "Azure Front Door — South Africa North degraded",
-      fired: "2026-09-03 07:18 SAST",
-      resource: "afd-retail-za / sa-north",
-      signal: "Origin latency p95 2.4s (SLO 400ms). 5xx 6.8%. Health probe to origin-group portal-bff failing 4/4.",
-      blast: "Customer checkout + account for ZA retail web and mobile."
-    },
-    onprem: {
-      source: "HPE GreenLake / SNMP (simulated)",
+  doorstep: {
+    id: "doorstep",
+    title: "Doorstep delivery — secure handoff",
+    spokenStart: "Run the doorstep delivery concierge.",
+    primary: {
+      source: "Ring Video Doorbell (simulated)",
       sev: "warn",
-      title: "Uplink CRC + bond saturation — rack JHB-DC-A",
-      fired: "2026-09-03 07:16 SAST",
-      resource: "gl-jhb-a / chassis-3 / bond0 → PE-CORE-02",
-      signal: "SNMP ifInErrors rising; bond0 98% util; iLO thermal normal. Same VLAN as Azure ExpressRoute private peering.",
-      blast: "On-prem origin for portal-bff and session Redis."
+      title: "Motion + package at front door",
+      fired: "2026-09-04 17:42 SAST",
+      resource: "ring-front-door / zone: stoop",
+      signal:
+        "Person detected with cardboard parcel. Live view idle. Last unlock: none in 90m. Ambient light: dusk.",
+      blast: "Unattended package on stoop — porch-piracy risk until someone is home."
+    },
+    secondary: {
+      source: "Amazon Orders (simulated)",
+      sev: "info",
+      title: "Same-day delivery expected — Echo Dot Kids",
+      fired: "2026-09-04 14:05 SAST",
+      resource: "order 702-8842101-4419284 / ship: AMZL",
+      signal:
+        "Out for delivery · ETA window 16:00–18:00 SAST · Signature not required · Destination: Home · Front door.",
+      blast: "Matches Ring package silhouette and ETA; high confidence this is the expected Amazon parcel."
     },
     context: {
-      changeCalendar: "CAB freeze week (ZA retail promo). Next approved window: Sat 6 Sep 06:00–08:00 SAST. Emergency CAB available with VP infra + security.",
-      lastDeploy: "portal-bff 1.14.2 via GitHub Actions → AKS (SA North) yesterday 22:10 SAST. Chart only; no network change.",
-      similar: "INC-4412 (May 2026): AFD origin failures correlated with PE-CORE-02 optic flap. Fix: replace LR optic + dampen BFD. Recurrence risk medium."
+      householdCalendar:
+        "School pickup until 18:15 SAST. Parent A free after 18:20. Quiet hours / kids bedtime prep starts 19:00.",
+      lastActivity:
+        "Alexa routine ‘I’m home’ last ran yesterday 18:41. No one marked home today. Fire TV idle.",
+      similar:
+        "TASK-991 (Aug 2026): Ring package + matching Amazon ETA → guest instruction card for neighbour. Handoff completed in 11m."
     },
     window: {
-      proposed: "Emergency 45-min window today 09:30–10:15 SAST",
-      alt: "Standard CAB Sat 6 Sep 06:00–08:00 SAST",
-      rationale: "Promo traffic already impacted; optic replacement is low-blast if we drain origin via AFD weighted routing first.",
+      proposed: "Secure handoff window today 18:20–18:45 SAST",
+      alt: "Neighbour leave-with 18:00–18:30 SAST (pre-authorised gate code)",
+      rationale:
+        "Order ETA closes at 18:00; household returns ~18:20. Propose a short presence window so the parcel is claimed before dusk fully settles — or fall back to the neighbour leave-with card.",
       tz: "Africa/Johannesburg (SAST, UTC+2)"
     },
     ticket: {
-      id: "CHG-88421",
-      title: "Emergency: replace PE-CORE-02 LR optic + drain AFD origin portal-bff",
-      severity: "SEV-2 hybrid",
-      cmdb: "afd-retail-za, aks-za-prod, gl-jhb-a, pe-core-02, exprt-za-01"
+      id: "GUEST-10421",
+      title: "Guest instruction — claim Amazon parcel at front door (Ring-verified)",
+      severity: "Household · delivery",
+      assets: "ring-front-door, order-702-8842101, alexa-echo-living"
     }
   },
-  storage: {
-    id: "storage",
-    title: "Backup replication — Primera to Azure Storage",
-    spokenStart: "Run the backup replication incident.",
-    azure: {
-      source: "Azure Service Health (simulated)",
-      sev: "warn",
-      title: "Storage — South Africa North elevated latency",
-      fired: "2026-09-03 06:52 SAST",
-      resource: "stzaarchiveprod / blob hot+cool",
-      signal: "PutBlob p99 1.8s. Service Health: 'investigating storage latency SA North'. Private endpoint stzaarchiveprod-pe affected.",
-      blast: "Nightly VM backup ingest + SQL log shipping to Azure."
+  bedtime: {
+    id: "bedtime",
+    title: "Evening routine — Fire TV + kids bedtime",
+    spokenStart: "Run the Fire TV evening bedtime routine.",
+    primary: {
+      source: "Fire TV Stick (simulated)",
+      sev: "info",
+      title: "Kids profile still streaming past quiet hours",
+      fired: "2026-09-04 19:12 SAST",
+      resource: "fire-tv-living / profile: Kids",
+      signal:
+        "Playback active 38m · title: Bluey S3. Volume 42%. Accessibility captions on. Quiet-hours policy starts 19:00.",
+      blast: "Bedtime wind-down delayed; living-room TV competing with wind-down lights / story."
     },
-    onprem: {
-      source: "HPE Primera / GreenLake (simulated)",
-      sev: "crit",
-      title: "Predictive disk failure — array PRM-JHB-01",
-      fired: "2026-09-03 06:47 SAST",
-      resource: "PRM-JHB-01 / cage 2 / SSD 19 (RAID-6)",
-      signal: "SMART media errors + GreenLake 'replace within 24h'. Replication RPO to Azure stretching 14m → 47m.",
-      blast: "Same backup fabric feeding Azure Blob via Data Box Gateway VM."
+    secondary: {
+      source: "Alexa+ Household Routine (simulated)",
+      sev: "warn",
+      title: "Bedtime routine stalled — presence incomplete",
+      fired: "2026-09-04 19:08 SAST",
+      resource: "routine: kids-bedtime / echo-kids-room",
+      signal:
+        "Step 2/5 waiting: ‘confirm kids in room’. Lights dimmed; white-noise queued. No Ring kids-room motion in 12m.",
+      blast: "Routine cannot finish without presence confirm — accessibility path needs a caregiver nudge."
     },
     context: {
-      changeCalendar: "Backup window nightly 22:00–02:00 SAST. Hardware replacement allowed with storage on-call; no freeze.",
-      lastDeploy: "databox-gw appliance patch 1.8.3 last Tuesday. No array firmware change in 40 days.",
-      similar: "INC-3901: Primera predictive fail without Azure latency — swap disk, RPO recovered in 12m. This one is dual-sided."
+      householdCalendar:
+        "School night. Lights-out target 19:30 SAST. Caregiver free until 20:00 then focus block.",
+      lastActivity:
+        "Echo Dot Kids last ‘Alexa, good night’ attempt 19:06 (interrupted). Ring kids-room last motion 18:54.",
+      similar:
+        "TASK-880 (Jul 2026): Fire TV kids profile past quiet hours → pause stream + resume bedtime routine. Caregiver card cleared in 6m."
     },
     window: {
-      proposed: "Hardware swap today 11:00–12:00 SAST (hot spare present)",
-      alt: "If Azure advisory persists, pause log-ship 12:00–13:00 SAST and fail backups to on-prem vault only",
-      rationale: "Disk is the local RPO driver; Azure latency is coincident but not the disk fault. Swap first, then re-evaluate cloud path.",
+      proposed: "Caregiver check-in window tonight 19:15–19:30 SAST",
+      alt: "Auto-pause Fire TV now; resume bedtime routine at 19:20 SAST",
+      rationale:
+        "Quiet hours already started. Short caregiver window keeps the accessibility path human-in-the-loop without killing captions mid-episode abruptly — alt is full auto-pause if nobody can check in.",
       tz: "Africa/Johannesburg (SAST, UTC+2)"
     },
     ticket: {
-      id: "CHG-88430",
-      title: "Replace PRM-JHB-01 SSD-19 + verify replication RPO to stzaarchiveprod",
-      severity: "SEV-2 storage",
-      cmdb: "prm-jhb-01, databox-gw-01, stzaarchiveprod, vault-jhb-a"
+      id: "TASK-22018",
+      title: "Caregiver card — pause Kids Fire TV + finish Alexa bedtime routine",
+      severity: "Household · evening routine",
+      assets: "fire-tv-living, echo-kids-room, routine-kids-bedtime, ring-kids-room"
     }
   }
 };

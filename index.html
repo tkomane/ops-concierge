@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; script-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'none'" />
   <meta name="description" content="Ops Concierge — Alexa+ simulation for Amazon household orchestration (doorstep delivery + evening routines). Amazon Developer Hackathon 2026." />
-  <meta name="theme-color" content="#0B0D10" />
+  <meta name="theme-color" content="#FFFFFF" />
   <title>Ops Concierge — Alexa+ Household Concierge</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="manifest" href="manifest.webmanifest" />
@@ -29,25 +29,25 @@
             <circle cx="16" cy="16" r="2.5" fill="currentColor"/>
           </svg>
           <div class="mark-text">
-            <span class="mark-name">OPS CONCIERGE</span>
-            <span class="mark-sub">ALEXA+ · HOUSEHOLD</span>
+            <span class="mark-name">Ops Concierge</span>
+            <span class="mark-sub">Alexa+ · Household</span>
           </div>
         </a>
       </div>
 
       <div class="topbar-center">
         <div class="meta-block">
-          <span class="meta-label">HOUSEHOLD CLOCK</span>
+          <span class="meta-label">Clock</span>
           <time class="meta-value mono" id="missionClock" datetime="">--:--:-- SAST</time>
         </div>
         <div class="meta-divider" aria-hidden="true"></div>
         <div class="meta-block">
-          <span class="meta-label">SESSION</span>
+          <span class="meta-label">Session</span>
           <span class="meta-value mono" id="sessionId">sess—idle</span>
         </div>
         <div class="meta-divider" aria-hidden="true"></div>
         <div class="meta-block">
-          <span class="meta-label">PHASE</span>
+          <span class="meta-label">Phase</span>
           <span class="phase-pill" id="phasePill" data-phase="idle">IDLE</span>
         </div>
       </div>
@@ -60,10 +60,16 @@
       </div>
     </header>
 
+
+    <section class="hero" aria-label="Product intro">
+      <p class="hero-eyebrow">Alexa+ simulation · Amazon Developer Hackathon 2026</p>
+      <h1 class="hero-title">Household orchestration you can <span class="accent-word">see.</span></h1>
+      <p class="hero-sub">Ring at the door, Amazon order ETA, calendar quiet hours, Fire TV bedtime — session-stateful concierge demos for judges, not a live device.</p>
+    </section>
     <main class="mission-grid" id="main">
       <section class="panel panel-voice" aria-label="Voice and chat">
         <header class="panel-head">
-          <h2 class="panel-title">VOICE / CHAT</h2>
+          <h2 class="panel-title">Voice / Chat</h2>
           <span class="panel-tag mono" id="orb" data-state="idle">ALEXA+ SIM</span>
         </header>
         <div class="chat" id="chat" role="log" aria-live="polite" aria-relevant="additions"></div>
@@ -81,7 +87,7 @@
 
       <section class="panel panel-board" aria-label="Household board">
         <header class="panel-head">
-          <h2 class="panel-title">HOUSEHOLD BOARD</h2>
+          <h2 class="panel-title">Household Board</h2>
           <span class="panel-tag mono" id="boardTag">STANDBY</span>
         </header>
         <div class="cards" id="cards"></div>
@@ -89,7 +95,7 @@
 
       <section class="panel panel-telemetry" aria-label="Tools timeline">
         <header class="panel-head">
-          <h2 class="panel-title">TOOLS</h2>
+          <h2 class="panel-title">Tools</h2>
           <span class="panel-tag mono" id="toolCount">0 EVENTS</span>
         </header>
         <div class="timeline" id="timeline" role="log" aria-live="polite" aria-relevant="additions"></div>
@@ -109,7 +115,7 @@
   <div class="overlay" id="shortcutsOverlay" hidden>
     <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="shortcutsTitle">
       <header class="overlay-head">
-        <h2 id="shortcutsTitle">KEYBOARD</h2>
+        <h2 id="shortcutsTitle">Keyboard</h2>
         <button type="button" class="btn btn-ghost" id="closeShortcuts" aria-label="Close">Esc</button>
       </header>
       <dl class="shortcut-list">
