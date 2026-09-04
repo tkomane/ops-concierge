@@ -1,18 +1,33 @@
 {
-  "name": "Ops Concierge",
-  "short_name": "OpsConcierge",
-  "description": "Alexa+ simulation — Amazon household orchestration (doorstep + evening routines). Offline mock.",
+  "name": "Ops Concierge — Home Helper",
+  "short_name": "Ops Helper",
+  "description": "Friendly home helper demo: doorbell, packages, quiet hours, and Fire TV into one clear plan — guest code or bedtime task. Alexa+ simulation · offline mock.",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#FFFFFF",
+  "orientation": "any",
+  "background_color": "#0A0A0A",
   "theme_color": "#FFFFFF",
   "lang": "en",
+  "categories": ["productivity", "utilities"],
   "icons": [
     {
       "src": "favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
+    },
+    {
+      "src": "icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ]
 }

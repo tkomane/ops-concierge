@@ -3,39 +3,40 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; script-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'none'" />
-  <meta name="description" content="Ops Concierge — Alexa+ simulation for Amazon household orchestration (doorstep delivery + evening routines). Amazon Developer Hackathon 2026." />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; font-src https://fonts.gstatic.com; connect-src 'self' http://127.0.0.1:8766 http://localhost:8766; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'" />
+  <meta name="description" content="Ops Concierge — a friendly household helper demo (Alexa+ simulation) that connects doorbell, packages, quiet hours, and Fire TV into one clear plan. Amazon Developer Hackathon 2026." />
   <meta name="theme-color" content="#FFFFFF" />
-  <title>Ops Concierge — Alexa+ Household Concierge</title>
+  <title>Ops Concierge — Home Helper Demo</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="preload" href="css/app.css" as="style" />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=Inter:wght@400;500;600;700&amp;display=swap" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+  <script src="js/theme.js"></script>
   <link rel="stylesheet" href="css/app.css" />
 </head>
 <body>
-  <div class="starfield" aria-hidden="true"></div>
-  <div class="grid-overlay" aria-hidden="true"></div>
-
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <div class="sr-only" id="a11yLive" role="status" aria-live="polite" aria-atomic="true"></div>
   <div class="app">
     <header class="topbar" role="banner">
       <div class="topbar-left">
         <a class="mark" href="./" aria-label="Ops Concierge home">
-          <svg class="mark-icon" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
-            <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.35"/>
-            <circle cx="16" cy="16" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
-            <circle cx="16" cy="16" r="2.5" fill="currentColor"/>
+          <svg class="mark-icon" viewBox="0 0 32 32" width="22" height="22" aria-hidden="true">
+            <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.22"/>
+            <circle cx="16" cy="16" r="7" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <circle cx="16" cy="16" r="2.4" fill="currentColor"/>
           </svg>
           <div class="mark-text">
             <span class="mark-name">Ops Concierge</span>
-            <span class="mark-sub">Alexa+ · Household</span>
+            <span class="mark-sub">Home helper · Alexa+</span>
           </div>
         </a>
       </div>
 
-      <div class="topbar-center">
+      <div class="topbar-center" aria-label="Helper status">
         <div class="meta-block">
           <span class="meta-label">Clock</span>
           <time class="meta-value mono" id="missionClock" datetime="">--:--:-- SAST</time>
@@ -43,71 +44,248 @@
         <div class="meta-divider" aria-hidden="true"></div>
         <div class="meta-block">
           <span class="meta-label">Session</span>
-          <span class="meta-value mono" id="sessionId">sess—idle</span>
+          <span class="meta-value mono" id="sessionId">—</span>
         </div>
         <div class="meta-divider" aria-hidden="true"></div>
         <div class="meta-block">
-          <span class="meta-label">Phase</span>
-          <span class="phase-pill" id="phasePill" data-phase="idle">IDLE</span>
+          <span class="meta-label">Status</span>
+          <span class="phase-pill" id="phasePill" data-phase="idle">Ready</span>
+        </div>
+        <div class="meta-divider" aria-hidden="true"></div>
+        <div class="meta-block meta-block-mcp">
+          <span class="meta-label">Helper link</span>
+          <span class="mcp-pill" id="mcpPill" data-state="mock" title="Demo mode — local mock (no live helper server)">
+            <span class="mcp-dot" aria-hidden="true"></span>
+            <span class="mcp-label" id="mcpPillLabel">Local mock</span>
+          </span>
         </div>
       </div>
 
       <div class="topbar-right">
-        <span class="sim-badge" title="Offline mock — not connected to Alexa hardware">SIMULATION · NOT A LIVE ALEXA DEVICE</span>
-        <button type="button" class="btn btn-ghost" id="demoBtn2" title="Fire TV bedtime routine">Bedtime</button>
-        <button type="button" class="btn btn-primary" id="demoBtn" title="Doorstep delivery (D)">Run demo</button>
+        <span class="sim-badge" title="Offline demo — not connected to a live Alexa device">Demo · not a live device</span>
+        <button type="button" class="btn btn-outline btn-with-icon" id="demoBtn2" title="Bedtime story — Fire TV quiet hours" aria-keyshortcuts="b">
+          <svg class="btn-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false">
+            <rect x="3.5" y="5.5" width="17" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M8 19.5h8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          Bedtime story
+        </button>
+        <button type="button" class="btn btn-outline btn-with-icon" id="demoBtn" title="Doorstep story (D)" aria-keyshortcuts="d">
+          <svg class="btn-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false">
+            <path d="M4 20V6.5A1.5 1.5 0 0 1 5.5 5h8A1.5 1.5 0 0 1 15 6.5V20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M15 9h3.5A1.5 1.5 0 0 1 20 10.5V20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="12.2" cy="12.5" r="0.9" fill="currentColor"/>
+          </svg>
+          Doorstep story
+        </button>
+        <button type="button" class="btn btn-icon theme-toggle" id="themeToggle" aria-label="Switch theme" title="Toggle light / dark theme" aria-pressed="false">
+          <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+            <path fill="currentColor" d="M12.1 2.05a1 1 0 0 1 .98 1.22 8 8 0 1 0 7.65 7.65 1 1 0 0 1 1.22.98A10 10 0 1 1 12.1 2.05z"/>
+          </svg>
+          <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+            <path fill="currentColor" d="M12 4a1 1 0 0 1 1 1v1.1a1 1 0 1 1-2 0V5a1 1 0 0 1 1-1zm0 12.9a1 1 0 0 1 1 1V19a1 1 0 1 1-2 0v-1.1a1 1 0 0 1 1-1zM5 11a1 1 0 0 1 1-1h1.1a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1zm11.9 0a1 1 0 0 1 1-1H19a1 1 0 1 1 0 2h-1.1a1 1 0 0 1-1-1zM7.05 7.05a1 1 0 0 1 1.41 0l.78.78a1 1 0 1 1-1.41 1.41l-.78-.78a1 1 0 0 1 0-1.41zm7.71 7.71a1 1 0 0 1 1.41 0l.78.78a1 1 0 0 1-1.41 1.41l-.78-.78a1 1 0 0 1 0-1.41zM16.95 7.05a1 1 0 0 1 0 1.41l-.78.78a1 1 0 1 1-1.41-1.41l.78-.78a1 1 0 0 1 1.41 0zM9.24 14.76a1 1 0 0 1 0 1.41l-.78.78a1 1 0 0 1-1.41-1.41l.78-.78a1 1 0 0 1 1.41 0zM12 8.5A3.5 3.5 0 1 1 8.5 12 3.5 3.5 0 0 1 12 8.5z"/>
+          </svg>
+        </button>
         <button type="button" class="btn btn-icon" id="helpBtn" aria-label="Keyboard shortcuts" title="Shortcuts (?)">?</button>
       </div>
     </header>
 
-
     <section class="hero" aria-label="Product intro">
-      <p class="hero-eyebrow">Alexa+ simulation · Amazon Developer Hackathon 2026</p>
-      <h1 class="hero-title">Household orchestration you can <span class="accent-word">see.</span></h1>
-      <p class="hero-sub">Ring at the door, Amazon order ETA, calendar quiet hours, Fire TV bedtime — session-stateful concierge demos for judges, not a live device.</p>
+      <p class="hero-eyebrow">
+        <span class="hero-eyebrow-tag">Demo</span>
+        <svg class="hero-eyebrow-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false">
+          <path d="M4 19.5V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M16 10h2.5A1.5 1.5 0 0 1 20 11.5V19.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="12" cy="12.5" r="0.9" fill="currentColor"/>
+        </svg>
+        Home helper demo · Amazon hackathon
+      </p>
+      <h1 class="hero-title">Your home’s helper, <span class="accent-word">step by step.</span></h1>
+      <p class="hero-sub">Doorstep handoff or bedtime stall — quiet hours matter either way. The helper connects the signals, then gives a guest code or a bedtime task.</p>
     </section>
-    <main class="mission-grid" id="main">
-      <section class="panel panel-voice" aria-label="Voice and chat">
+
+    <nav class="how-strip" id="howStrip" data-mode="idle" aria-label="How the helper works">
+      <p class="how-strip-label">How it works</p>
+      <ol class="how-steps" id="howSteps" role="list">
+        <li class="how-step" data-step="door" tabindex="0" role="button" aria-label="Door — someone’s there" aria-current="false">
+          <span class="how-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" focusable="false">
+              <path d="M4 20V6.5A1.5 1.5 0 0 1 5.5 5h8A1.5 1.5 0 0 1 15 6.5V20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M15 9h3.5A1.5 1.5 0 0 1 20 10.5V20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="12.2" cy="12.5" r="0.9" fill="currentColor"/>
+            </svg>
+          </span>
+          <span class="how-name">Door</span>
+          <span class="how-hint">Someone’s there</span>
+        </li>
+        <li class="how-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M5 12h12M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </li>
+        <li class="how-step" data-step="package" tabindex="0" role="button" aria-label="Package — expected order?" aria-current="false">
+          <span class="how-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" focusable="false">
+              <path d="M4 8.5 12 4l8 4.5v9L12 22l-8-4.5v-9z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M12 12v10M4 8.5l8 3.5 8-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="how-name">Package</span>
+          <span class="how-hint">Expected order?</span>
+        </li>
+        <li class="how-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M5 12h12M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </li>
+        <li class="how-step" data-step="quiet" tabindex="0" role="button" aria-label="Quiet hours — calendar check" aria-current="false">
+          <span class="how-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" focusable="false">
+              <rect x="4" y="5" width="16" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M8 3.5v3M16 3.5v3M4 10h16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="12" cy="15" r="1.4" fill="currentColor"/>
+            </svg>
+          </span>
+          <span class="how-name">Quiet hours</span>
+          <span class="how-hint">Calendar check</span>
+        </li>
+        <li class="how-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M5 12h12M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </li>
+        <li class="how-step" data-step="guest" tabindex="0" role="button" aria-label="Guest code or bedtime task" aria-current="false">
+          <span class="how-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" focusable="false">
+              <rect x="3.5" y="6" width="17" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M7 12h4M7 15h6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="16.5" cy="12" r="1.6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+          </span>
+          <span class="how-name">Guest / Task</span>
+          <span class="how-hint">Either story</span>
+        </li>
+      </ol>
+      <div class="how-bedtime-path" id="howBedtimePath" aria-label="Bedtime alternate path">
+        <p class="how-strip-alt how-strip-alt-lead">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false">
+            <rect x="3.5" y="5.5" width="17" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M8 19.5h8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <span><strong>Bedtime path</strong> — same weight as Doorstep · one tap (B)</span>
+        </p>
+        <ol class="how-bed-steps" id="howBedSteps" role="list">
+          <li class="how-bed-step" data-bed="firetv" aria-current="false">
+            <span class="how-bed-name">Fire TV</span>
+            <span class="how-bed-hint">Still on</span>
+          </li>
+          <li class="how-bed-arrow" aria-hidden="true">→</li>
+          <li class="how-bed-step" data-bed="quiet" aria-current="false">
+            <span class="how-bed-name">Quiet</span>
+            <span class="how-bed-hint">Hours check</span>
+          </li>
+          <li class="how-bed-arrow" aria-hidden="true">→</li>
+          <li class="how-bed-step" data-bed="task" aria-current="false">
+            <span class="how-bed-name">Task</span>
+            <span class="how-bed-hint">TASK-22018</span>
+          </li>
+        </ol>
+      </div>
+    </nav>
+
+
+
+    <div class="coach-banner" id="coachBanner" role="region" aria-label="Quick start for judges" hidden>
+      <div class="coach-banner-inner">
+        <p class="coach-copy"><strong>30 seconds:</strong> Pick either story. <kbd>Doorstep story</kbd> → Door → Package → Quiet → <strong>Guest code</strong>. <kbd>Bedtime story</kbd> → Fire TV → Quiet → <strong>Task</strong>. Both end with a copyable trophy.</p>
+        <div class="coach-actions">
+          <button type="button" class="btn btn-outline btn-sm" id="coachStartDoorstep">Start doorstep</button>
+          <button type="button" class="btn btn-outline btn-sm" id="coachStartBedtime">Start bedtime</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="coachDismiss" aria-label="Dismiss tip">Got it</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="story-progress" id="storyProgress" hidden aria-hidden="true">
+      <div class="story-progress-inner" role="group" aria-label="Where you are in the story">
+        <p class="story-progress-label" id="storyProgressLabel">Story progress</p>
+        <ol class="story-dots" id="storyDots">
+          <li class="story-dot" data-phase="ingested" aria-label="See what’s happening"><span class="dot-mark" aria-hidden="true"></span><span class="dot-name">See</span></li>
+          <li class="story-dot" data-phase="ack" aria-label="Hold this moment"><span class="dot-mark" aria-hidden="true"></span><span class="dot-name">Hold</span></li>
+          <li class="story-dot" data-phase="correlated" aria-label="Connect the dots"><span class="dot-mark" aria-hidden="true"></span><span class="dot-name">Connect</span></li>
+          <li class="story-dot" data-phase="windowed" aria-label="Quiet-hours plan"><span class="dot-mark" aria-hidden="true"></span><span class="dot-name">Plan</span></li>
+          <li class="story-dot" data-phase="ticketed" aria-label="Guest code or bedtime task"><span class="dot-mark" aria-hidden="true"></span><span class="dot-name">Code / Task</span></li>
+        </ol>
+      </div>
+    </div>
+
+    <main class="mission-grid" id="main" tabindex="-1">
+      <section class="panel panel-voice" aria-label="Talk to the helper">
         <header class="panel-head">
-          <h2 class="panel-title">Voice / Chat</h2>
-          <span class="panel-tag mono" id="orb" data-state="idle">ALEXA+ SIM</span>
+          <h2 class="panel-title">
+            <svg class="panel-ic" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+              <path d="M5 12a7 7 0 0 1 14 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M8.5 12a3.5 3.5 0 0 1 7 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="12" cy="12" r="1.2" fill="currentColor"/>
+              <path d="M12 15.5V19M9.5 19h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            Talk to the helper
+          </h2>
+          <span class="panel-tag" id="orb" data-state="idle">Helper ready</span>
         </header>
         <div class="chat" id="chat" role="log" aria-live="polite" aria-relevant="additions"></div>
         <div class="voice-foot">
-          <p class="voice-hint">Utterances drive session state. Chips = suggested commands. <kbd>1</kbd>–<kbd>4</kbd> · <kbd>Enter</kbd> · <kbd>D</kbd> demo</p>
-          <div class="chips" id="chips" role="group" aria-label="Suggested utterances"></div>
+          <p class="voice-hint" id="voiceHint">Tap a suggestion, or type. <kbd>1</kbd>–<kbd>4</kbd> · <kbd>Enter</kbd> · <kbd>D</kbd> doorstep · <kbd>B</kbd> bedtime · <kbd>?</kbd> shortcuts</p>
+          <div class="chips" id="chips" role="group" aria-label="Suggested next steps"></div>
           <div class="composer">
-            <label class="sr-only" for="utter">Command input</label>
+            <label class="sr-only" for="utter">Message the helper</label>
             <input id="utter" type="text" autocomplete="off" spellcheck="false"
-              placeholder="Ask Alexa+… e.g. acknowledge both signals" />
-            <button type="button" class="btn btn-primary" id="sendBtn">Send</button>
+              placeholder="Ask the helper… e.g. someone’s at the door" aria-describedby="composerKbHint" />
+            <button type="button" class="btn btn-primary" id="sendBtn" disabled aria-disabled="true" title="Type a message to send">Send</button>
           </div>
+          <p class="composer-kb-hint" id="composerKbHint"><kbd>?</kbd> shortcuts · <kbd>D</kbd>/<kbd>B</kbd> stories · Send stays off while empty</p>
         </div>
       </section>
 
-      <section class="panel panel-board" aria-label="Household board">
+      <section class="panel panel-board" aria-label="What’s happening at home">
         <header class="panel-head">
-          <h2 class="panel-title">Household Board</h2>
-          <span class="panel-tag mono" id="boardTag">STANDBY</span>
+          <h2 class="panel-title">
+            <svg class="panel-ic" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+              <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+            What’s happening at home
+          </h2>
+          <span class="panel-tag" id="boardTag">Ready</span>
         </header>
         <div class="cards" id="cards"></div>
       </section>
 
-      <section class="panel panel-telemetry" aria-label="Tools timeline">
+      <section class="panel panel-telemetry" aria-label="Steps the helper took">
         <header class="panel-head">
-          <h2 class="panel-title">Tools</h2>
-          <span class="panel-tag mono" id="toolCount">0 EVENTS</span>
+          <h2 class="panel-title">
+            <svg class="panel-ic" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+              <path d="M6 6h12M6 12h8M6 18h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="18.5" cy="12" r="1.4" fill="currentColor"/>
+            </svg>
+            Steps the helper took
+          </h2>
+          <span class="panel-tag" id="toolCount">0 steps</span>
         </header>
         <div class="timeline" id="timeline" role="log" aria-live="polite" aria-relevant="additions"></div>
-        <div class="session-strip" id="sessionBox">
-          <span class="mono">SESSION IDLE</span>
-          <span class="muted">No tools fired</span>
+        <div class="session-strip" id="sessionBox" aria-live="polite">
+          <span class="mono">Ready</span>
+          <span class="muted">No steps yet — Doorstep or Bedtime, same weight</span>
         </div>
       </section>
     </main>
 
+    <details class="judge-strip" id="judgeStrip">
+      <summary class="judge-strip-summary">For judges · trust signals</summary>
+      <div class="judge-strip-body">
+        <ul class="judge-signals">
+          <li><strong>Alexa+ path:</strong> Simulated web experience (Official Rules §4) — Doorstep → GUEST-10421 · Bedtime → TASK-22018.</li>
+          <li><strong>MCP:</strong> Optional local tools on <span class="mono">127.0.0.1:8766</span>; UI mock is the default offline demo.</li>
+          <li><strong>Public repo intent:</strong> MIT · static HTML/CSP · zero secrets · publish when sync is approved.</li>
+        </ul>
+      </div>
+    </details>
+
     <footer class="footer" role="contentinfo">
-      <span>Amazon Developer Hackathon 2026 · Alexa+ simulated path (rules §4) · offline mock</span>
+      <span>Amazon Developer Hackathon 2026 · Alexa+ simulated path (rules §4) · offline demo</span>
       <span class="mono">Tshiamo Komane · Africa/Johannesburg</span>
     </footer>
   </div>
@@ -115,22 +293,26 @@
   <div class="overlay" id="shortcutsOverlay" hidden>
     <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="shortcutsTitle">
       <header class="overlay-head">
-        <h2 id="shortcutsTitle">Keyboard</h2>
+        <h2 id="shortcutsTitle">Keyboard shortcuts</h2>
         <button type="button" class="btn btn-ghost" id="closeShortcuts" aria-label="Close">Esc</button>
       </header>
+      <p class="overlay-lead">Power-user layer — works when you’re not typing in the composer.</p>
       <dl class="shortcut-list">
-        <div><dt><kbd>Enter</kbd></dt><dd>Send utterance</dd></div>
-        <div><dt><kbd>1</kbd>–<kbd>4</kbd></dt><dd>Trigger visible chips</dd></div>
-        <div><dt><kbd>D</kbd></dt><dd>Run doorstep delivery demo</dd></div>
-        <div><dt><kbd>?</kbd></dt><dd>Toggle this overlay</dd></div>
-        <div><dt><kbd>Esc</kbd></dt><dd>Close overlay</dd></div>
+        <div><dt><kbd>Enter</kbd></dt><dd>Send to the helper</dd></div>
+        <div><dt><kbd>1</kbd>–<kbd>4</kbd></dt><dd>Pick a suggestion chip</dd></div>
+        <div><dt><kbd>D</kbd></dt><dd>Doorstep story → guest code</dd></div>
+        <div><dt><kbd>B</kbd></dt><dd>Bedtime story → Fire TV task</dd></div>
+        <div><dt><kbd>?</kbd></dt><dd>Show or hide these tips</dd></div>
+        <div><dt><kbd>Esc</kbd></dt><dd>Close this panel</dd></div>
       </dl>
+      <p class="overlay-foot muted">Tip: after a story finishes, copy the guest code or bedtime task from the board card.</p>
     </div>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="js/scenarios.js"></script>
+  <script src="js/mcp-client.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

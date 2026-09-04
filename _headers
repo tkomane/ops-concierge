@@ -1,0 +1,8 @@
+# Optional static host headers (Cloudflare Pages / Netlify).
+# Local demos use serve.py — this file is not read by serve.py.
+# GitHub Pages ignores _headers; rely on meta CSP in index.html there.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; font-src https://fonts.gstatic.com; connect-src 'self' http://127.0.0.1:8766 http://localhost:8766; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()

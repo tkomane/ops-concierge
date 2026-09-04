@@ -18,3 +18,14 @@ htmlcov/
 dist/
 build/
 node_modules/
+*.egg-info/
+.pytest_cache/
+.uv/
+
+# local capture / encode noise
+demo-video/*.log
+demo-video/raw-capture.mp4
+demo-video/narration/
+refs/xai-*.png
+refs/smoke-loop-*.py
+refs/capture-previews.py

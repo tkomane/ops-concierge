@@ -53,6 +53,7 @@ jobs:
               ("css/app.css", 'href="css/app.css"' in html or "href='css/app.css'" in html),
               ("js/scenarios.js", "js/scenarios.js" in html),
               ("js/app.js", "js/app.js" in html),
+              ("js/mcp-client.js", "js/mcp-client.js" in html),
           ]
           failed = False
           for label, ok in checks:
@@ -63,7 +64,7 @@ jobs:
                   failed = True
 
           # Ensure referenced local assets exist on disk
-          for rel in ("css/app.css", "js/scenarios.js", "js/app.js"):
+          for rel in ("css/app.css", "js/scenarios.js", "js/mcp-client.js", "js/app.js"):
               if not Path(rel).is_file():
                   print(f"::error::Referenced asset missing on disk: {rel}")
                   failed = True
@@ -100,3 +101,34 @@ jobs:
           grep -q "HTTP 200" /tmp/ci-robots.status
 
           echo "Smoke checks passed"
+
+  mcp-pytest:
+    name: MCP server pytest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install MCP package + test deps
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run pytest
+        run: pytest -q
+
+      - name: Vendor narrative grep (MCP sources)
+        run: |
+          set -euo pipefail
+          # Specs may mention forbidden vendors as exclusions; scan implementation only.
+          if grep -RniE 'Azure|GreenLake|HPE GreenLake' mcp_server js/mcp-client.js docs/MCP.md ; then
+            echo "::error::Forbidden vendor narrative found in MCP implementation/docs"
+            exit 1
+          fi
+          echo "Vendor grep clean"

@@ -1,6 +1,6 @@
 # Architecture (one-pager)
 
-**Ops Concierge** is a **client-only** static web app: HTML + CSS + JS, no bundler, no backend, no secrets.
+**Ops Concierge** ships primarily as a **client-only** static web app: HTML + CSS + JS, no bundler, no secrets. An optional self-hosted MCP package (`mcp_server/`) provides Streamable HTTP tools for local/hackathon demos.
 
 ## Runtime shape
 
@@ -22,7 +22,7 @@ Serve with any static file server (`python3 serve.py`, `python3 -m http.server`,
 
 ## Tool simulation
 
-The “MCP-like” timeline (`ring.query`, `order.lookup`, `session.ack`, `calendar.propose`, `notify.household`, `task.open`, …) is **simulated**:
+The tool timeline (`ring.query`, `order.lookup`, `session.ack`, `calendar.propose`, `notify.household`, `task.open`, …) is **simulated**:
 
 - No outbound calls to Ring, Amazon Orders, Fire TV, or household ITSM.
 - Results are deterministic mocks from `scenarios.js` / in-app fixtures.
@@ -44,6 +44,10 @@ The “MCP-like” timeline (`ring.query`, `order.lookup`, `session.ack`, `calen
 | Local `serve.py` | Demo with security headers |
 | GitHub Pages | Public static demo (see docs/DEVOPS.md) |
 | CI | File presence + HTML asset reference + curl smoke |
+
+## Optional MCP server (local)
+
+When developing locally you may also run `python -m mcp_server` (Streamable HTTP on `127.0.0.1:8766/mcp`). The browser demo remains **offline-first**; an optional feature flag can call the `/demo/call` JSON bridge. See [MCP.md](MCP.md). Production GitHub Pages does not require MCP.
 
 ## Non-goals
 
