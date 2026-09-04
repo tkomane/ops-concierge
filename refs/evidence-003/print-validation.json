@@ -1,0 +1,274 @@
+{
+  "head": "e279f10c82ed5ee30650be28406ac283e9bebd10",
+  "setup": {
+    "base": "http://127.0.0.1:8765/",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "method": "Playwright emulate_media(print) + data-print-ticket=1 + page.pdf(A4) + pdftoppm page PNGs + element screenshot",
+    "native_print_dialog": false,
+    "server": "existing python serve.py on 127.0.0.1:8765"
+  },
+  "scenarios": {
+    "doorstep": {
+      "approve": {
+        "phase": "acted",
+        "scenarioId": "doorstep",
+        "planId": "plan_1",
+        "status": "confirmed",
+        "artefactStatus": "draft",
+        "obsCount": 9,
+        "assCount": 2,
+        "ticketId": null
+      },
+      "checks": [],
+      "pages": [],
+      "verdict": "PASS",
+      "dom_text_len": 1259,
+      "dom_misses": [],
+      "dom_preview": "SIMULATED HANDOFF PLAN (sample reference \u2014 not a gate credential)\nSample ref:  GUEST-10421\nTitle:       Simulated handoff plan \u2014 claim Amazon parcel at front door (sample ref)\nStatus:      draft\nApproval:    confirmed\nRecipient:   Thabo (neighbour)\nAction:      notify_handoff\nTiming:      Neighbour leave-with 18:00\u201318:30 SAST\nTimezone:    Africa/Johannesburg (SAST, UTC+2)\n\nObservations:\n  - motion",
+      "print_sample": {
+        "hasTicket": true,
+        "hasBody": true,
+        "dataPrintTicket": "1",
+        "ticketVisibility": "visible",
+        "ticketDisplay": "block",
+        "ticketPosition": "static",
+        "ticketBg": "rgb(255, 255, 255)",
+        "ticketColor": "rgb(10, 10, 10)",
+        "bodyMaxHeight": "none",
+        "bodyOverflow": "visible",
+        "bodyFontSize": "14.6667px",
+        "bodyTextLength": 1259,
+        "actionsDisplay": "none",
+        "printBtnDisplay": "none",
+        "copyBtnDisplay": "none",
+        "headerDisplay": "none",
+        "ticketVisibleCorrect": true,
+        "ticketVisibleNaive": true,
+        "printCssRules": 1,
+        "bodyScrollHeight": 710,
+        "bodyClientHeight": 710,
+        "trophyScrollHeight": 871
+      },
+      "print_body_text": "SIMULATED HANDOFF PLAN (sample reference \u2014 not a gate credential)\nSample ref:  GUEST-10421\nTitle:       Simulated handoff plan \u2014 claim Amazon parcel at front door (sample ref)\nStatus:      draft\nApproval:    confirmed\nRecipient:   Thabo (neighbour)\nAction:      notify_handoff\nTiming:      Neighbour leave-with 18:00\u201318:30 SAST\nTimezone:    Africa/Johannesburg (SAST, UTC+2)\n\nObservations:\n  - motion: true\n  - parcelVisual: true\n  - summary: ring motion at front door \u00b7 parcel-shaped cardboard\n  - eta: 16:00\u201318:00 SAST\n  - carrier: AMZL\n  - summary: AMZL stop nearby / expected delivery window\n  - summary: ACK session sess-mtnlu7lr\n  - summary: Secure handoff window today 18:20\u201318:45 SAST\n  - AMZL stop nearby / expected delivery window\nAssumptions:\n  - Neighbour usually available after 19:00 is stale \u2014 using leave-with window 18:00\u201318:30\n  - Thabo is pre-authorised for gate/guest handoff in household context\n\nPrimary:     Courier at the stoop with a sealed Amazon box @ 2026-09-04 17:42 SAST\nSecondary:   Same-day AMZL \u2014 Echo Dot Kids for Lebo @ 2026-09-04 14:05 SAST\n\nOpened by Ops Concierge (Alexa+ simulation) session sess-mtnlu7lr\nHousehold: Tshiamo Komane \u2014 Africa/Johannesburg\nNote:       Sample reference only \u2014 not an unlock / door credential",
+      "visibility_note": "Under @media print, `body * { visibility: hidden }` hides the tree; `#ticketTrophy` and `#ticketTrophy *` are forced visible when `html[data-print-ticket=1]`. A naive offsetParent/visibility sample yields ticketVisibleNaive=True while the correct ticket visibility is ticketVisibleCorrect=True. The prior visual-check.json recorded ticketVisible:false (naive) alongside print:PASS \u2014 that was a sampling artefact, not clipped output proof.",
+      "full_png": "refs/evidence-003/print-doorstep-full.png",
+      "viewport_png": "refs/evidence-003/print-doorstep-viewport.png",
+      "pdf": "refs/evidence-003/print-doorstep.pdf",
+      "pdf_pages": 3,
+      "pdfinfo": "Title:           Ops Concierge \u2014 Home Helper Demo\nCreator:         Chromium\nProducer:        Skia/PDF m151\nCreationDate:    Fri Sep  4 23:48:26 2026 UTC\nModDate:         Fri Sep  4 23:48:26 2026 UTC\nCustom Metadata: no\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           3\nEncrypted:       no\nPage size:       595.92 x 842.88 pts (A4)\nPage rot:        0\nFile size:       33436 bytes\nOptimized:       no\nPDF version:     1.4\n",
+      "pdf_text_len": 1358,
+      "pdf_text_preview": "Guest code ready\n\n\nGUEST-10421\nSIMULATED HANDOFF PLAN (sample reference \u2014 not a gate\ncredential)\nSample ref:        GUEST-10421\nTitle:             Simulated handoff plan \u2014 claim Amazon\nparcel at front door (sample ref)\nStatus:            draft\nApproval:          confirmed\nRecipient:         Thabo (neighbour)\nAction:            notify_handoff\nTiming:            Neighbour leave-with 18:00\u201318:30 SAST\nTimezone:          Africa/Johannesburg (SAST, UTC+2)\n\n\nObservations:\n  - motion: true\n  - parcelVisual: true\n  - summary: ring motion at front door \u00b7 parcel-shaped\ncardboard\n  - eta: 16:00\u201318:00 SAST",
+      "pdf_misses": [],
+      "print_dom_misses": [],
+      "controls_hidden": true,
+      "readable_colours": true,
+      "ticket_bg": "rgb(255, 255, 255)",
+      "ticket_color": "rgb(10, 10, 10)",
+      "max_height": "none",
+      "body_scroll": 710,
+      "body_client": 710,
+      "fully_expanded": true,
+      "ticket_visible_correct": true,
+      "page_files": [
+        "refs/evidence-003/print-doorstep-page-1.png",
+        "refs/evidence-003/print-doorstep-page-2.png",
+        "refs/evidence-003/print-doorstep-page-3.png"
+      ],
+      "page_inspections": [
+        {
+          "page": 1,
+          "path": "refs/evidence-003/print-doorstep-page-1.png",
+          "png_w": 1242,
+          "png_h": 1756,
+          "bytes": 222269
+        },
+        {
+          "page": 2,
+          "path": "refs/evidence-003/print-doorstep-page-2.png",
+          "png_w": 1242,
+          "png_h": 1756,
+          "bytes": 20395
+        },
+        {
+          "page": 3,
+          "path": "refs/evidence-003/print-doorstep-page-3.png",
+          "png_w": 1242,
+          "png_h": 1756,
+          "bytes": 8896
+        }
+      ],
+      "coverage": {
+        "full_png": {
+          "w": 1282,
+          "h": 875,
+          "dark_first": 0,
+          "dark_last": 874,
+          "bottom_gap": 0,
+          "blank": false
+        }
+      },
+      "page_coverage": [
+        {
+          "path": "refs/evidence-003/print-doorstep-page-1.png",
+          "w": 1242,
+          "h": 1756,
+          "blank": false,
+          "dark_first": 97,
+          "dark_last": 1684
+        },
+        {
+          "path": "refs/evidence-003/print-doorstep-page-2.png",
+          "w": 1242,
+          "h": 1756,
+          "blank": false,
+          "dark_first": 70,
+          "dark_last": 222
+        },
+        {
+          "path": "refs/evidence-003/print-doorstep-page-3.png",
+          "w": 1242,
+          "h": 1756,
+          "blank": true,
+          "dark_first": null,
+          "dark_last": null
+        }
+      ],
+      "nonblank_pdf_pages": 2,
+      "visual_clip": false,
+      "pdf_text_complete": true
+    },
+    "bedtime": {
+      "approve": {
+        "phase": "acted",
+        "scenarioId": "bedtime",
+        "planId": "plan_1",
+        "status": "confirmed",
+        "artefactStatus": "draft",
+        "obsCount": 4,
+        "assCount": 1,
+        "ticketId": null
+      },
+      "checks": [],
+      "pages": [],
+      "verdict": "PASS",
+      "dom_text_len": 984,
+      "dom_misses": [],
+      "dom_preview": "HOUSEHOLD TASK (simulated)\nSample ref:  TASK-22018\nTitle:       Bedtime task \u2014 pause Kids Fire TV + finish Alexa bedtime routine\nStatus:      draft\nApproval:    confirmed\nRecipient:   Mira (parent)\nAction:      caregiver_nudge\nTiming:      Caregiver check-in window tonight 19:15\u201319:30 SAST\nTimezone:    Africa/Johannesburg (SAST, UTC+2)\n\nObservations:\n  - summary: presence \u00b7 kids room / living moti",
+      "print_sample": {
+        "hasTicket": true,
+        "hasBody": true,
+        "dataPrintTicket": "1",
+        "ticketVisibility": "visible",
+        "ticketDisplay": "block",
+        "ticketPosition": "static",
+        "ticketBg": "rgb(255, 255, 255)",
+        "ticketColor": "rgb(10, 10, 10)",
+        "bodyMaxHeight": "none",
+        "bodyOverflow": "visible",
+        "bodyFontSize": "14.6667px",
+        "bodyTextLength": 984,
+        "actionsDisplay": "none",
+        "printBtnDisplay": "none",
+        "copyBtnDisplay": "none",
+        "headerDisplay": "none",
+        "ticketVisibleCorrect": true,
+        "ticketVisibleNaive": true,
+        "printCssRules": 1,
+        "bodyScrollHeight": 574,
+        "bodyClientHeight": 574,
+        "trophyScrollHeight": 734
+      },
+      "print_body_text": "HOUSEHOLD TASK (simulated)\nSample ref:  TASK-22018\nTitle:       Bedtime task \u2014 pause Kids Fire TV + finish Alexa bedtime routine\nStatus:      draft\nApproval:    confirmed\nRecipient:   Mira (parent)\nAction:      caregiver_nudge\nTiming:      Caregiver check-in window tonight 19:15\u201319:30 SAST\nTimezone:    Africa/Johannesburg (SAST, UTC+2)\n\nObservations:\n  - summary: presence \u00b7 kids room / living motion\n  - summary: Fire TV kids profile still streaming past quiet hours\n  - summary: session.ack\n  - summary: Caregiver check-in window tonight 19:15\u201319:30 SAST\nAssumptions:\n  - Mira is free until 20:00 for a short check-in\n\nPrimary:     Kids profile still streaming Bluey past quiet hours @ 2026-09-04 19:12 SAST\nSecondary:   Bedtime routine waiting \u2014 Lebo not confirmed in room @ 2026-09-04 19:08 SAST\n\nOpened by Ops Concierge (Alexa+ simulation) session sess-mtnlucxd\nHousehold: Tshiamo Komane \u2014 Africa/Johannesburg\nNote:       Sample reference only \u2014 not an unlock / door credential",
+      "visibility_note": "Under @media print, `body * { visibility: hidden }` hides the tree; `#ticketTrophy` and `#ticketTrophy *` are forced visible when `html[data-print-ticket=1]`. A naive offsetParent/visibility sample yields ticketVisibleNaive=True while the correct ticket visibility is ticketVisibleCorrect=True. The prior visual-check.json recorded ticketVisible:false (naive) alongside print:PASS \u2014 that was a sampling artefact, not clipped output proof.",
+      "full_png": "refs/evidence-003/print-bedtime-full.png",
+      "viewport_png": "refs/evidence-003/print-bedtime-viewport.png",
+      "pdf": "refs/evidence-003/print-bedtime.pdf",
+      "pdf_pages": 3,
+      "pdfinfo": "Title:           Ops Concierge \u2014 Home Helper Demo\nCreator:         Chromium\nProducer:        Skia/PDF m151\nCreationDate:    Fri Sep  4 23:48:33 2026 UTC\nModDate:         Fri Sep  4 23:48:33 2026 UTC\nCustom Metadata: no\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           3\nEncrypted:       no\nPage size:       595.92 x 842.88 pts (A4)\nPage rot:        0\nFile size:       30952 bytes\nOptimized:       no\nPDF version:     1.4\n",
+      "pdf_text_len": 1110,
+      "pdf_text_preview": "Bedtime task ready\n\n\nTASK-22018\nHOUSEHOLD TASK (simulated)\nSample ref:          TASK-22018\nTitle:               Bedtime task \u2014 pause Kids Fire TV + finish\nAlexa bedtime routine\nStatus:              draft\nApproval:            confirmed\nRecipient:           Mira (parent)\nAction:              caregiver_nudge\nTiming:              Caregiver check-in window tonight 19:15\u2013\n19:30 SAST\nTimezone:            Africa/Johannesburg (SAST, UTC+2)\n\n\nObservations:\n  - summary: presence \u00b7 kids room / living motion\n  - summary: Fire TV kids profile still streaming past\nquiet hours\n  - summary: session.ack\n  - sum",
+      "pdf_misses": [],
+      "print_dom_misses": [],
+      "controls_hidden": true,
+      "readable_colours": true,
+      "ticket_bg": "rgb(255, 255, 255)",
+      "ticket_color": "rgb(10, 10, 10)",
+      "max_height": "none",
+      "body_scroll": 574,
+      "body_client": 574,
+      "fully_expanded": true,
+      "ticket_visible_correct": true,
+      "page_files": [
+        "refs/evidence-003/print-bedtime-page-1.png",
+        "refs/evidence-003/print-bedtime-page-2.png",
+        "refs/evidence-003/print-bedtime-page-3.png"
+      ],
+      "page_inspections": [
+        {
+          "page": 1,
+          "path": "refs/evidence-003/print-bedtime-page-1.png",
+          "png_w": 1242,
+          "png_h": 1756,
+          "bytes": 191992
+        },
+        {
+          "page": 2,
+          "path": "refs/evidence-003/print-bedtime-page-2.png",
+          "png_w": 1242,
+          "png_h": 1756,
+          "bytes": 8896
+        },
+        {
+          "page": 3,
+          "path": "refs/evidence-003/print-bedtime-page-3.png",
+          "png_w": 1242,
+          "png_h": 1756,
+          "bytes": 8896
+        }
+      ],
+      "coverage": {
+        "full_png": {
+          "w": 1282,
+          "h": 739,
+          "dark_first": 0,
+          "dark_last": 737,
+          "bottom_gap": 1,
+          "blank": false
+        }
+      },
+      "page_coverage": [
+        {
+          "path": "refs/evidence-003/print-bedtime-page-1.png",
+          "w": 1242,
+          "h": 1756,
+          "blank": false,
+          "dark_first": 97,
+          "dark_last": 1533
+        },
+        {
+          "path": "refs/evidence-003/print-bedtime-page-2.png",
+          "w": 1242,
+          "h": 1756,
+          "blank": true,
+          "dark_first": null,
+          "dark_last": null
+        },
+        {
+          "path": "refs/evidence-003/print-bedtime-page-3.png",
+          "w": 1242,
+          "h": 1756,
+          "blank": true,
+          "dark_first": null,
+          "dark_last": null
+        }
+      ],
+      "nonblank_pdf_pages": 1,
+      "visual_clip": false,
+      "pdf_text_complete": true
+    }
+  },
+  "overall": "PASS"
+}

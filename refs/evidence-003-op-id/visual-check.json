@@ -78,7 +78,8 @@
     {
       "printTicketCount": 1
     },
-    "print via emulate_media + data-print-ticket (native dialog not invoked)"
+    "print via emulate_media + data-print-ticket + page.pdf (native dialog not invoked)",
+    "print-ticket.png replaced with complete doorstep full-height capture after print CSS unclip fix"
   ],
   "reduced_motion_sample": [
     {
@@ -113,8 +114,22 @@
     }
   ],
   "print_sample": {
-    "headerDisplay": "grid",
-    "ticketVisible": false,
-    "printCssRules": 1
+    "headerDisplay": "none",
+    "ticketVisible": true,
+    "ticketVisibleCorrect": true,
+    "ticketVisibleNaiveLegacy": false,
+    "ticketVisibleExplanation": "Prior visual-check.json set ticketVisible:false while print:PASS. That false was a naive visibility/offsetParent sample taken under @media print body * {visibility:hidden} without treating the #ticketTrophy visibility:visible override as success. Re-sampled with data-print-ticket=1: ticket visibility is visible, controls display:none, body max-height:none. Complete paginated exports are in refs/evidence-003/print-doorstep*.png|pdf and print-bedtime*.png|pdf.",
+    "printCssRules": 1,
+    "controlsHidden": true,
+    "bodyMaxHeight": "none",
+    "fullyExpanded": true,
+    "readableColours": true,
+    "artifacts": {
+      "doorstep_pdf": "refs/evidence-003/print-doorstep.pdf",
+      "bedtime_pdf": "refs/evidence-003/print-bedtime.pdf",
+      "doorstep_full": "refs/evidence-003/print-doorstep-full.png",
+      "bedtime_full": "refs/evidence-003/print-bedtime-full.png",
+      "replaced_print_ticket": "refs/evidence-003-op-id/print-ticket.png"
+    }
   }
 }

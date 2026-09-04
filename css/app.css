@@ -1992,15 +1992,51 @@ html[data-theme="dark"] .ticket-actions .btn.is-copied {
   html[data-print-ticket="1"] #ticketTrophy * {
     visibility: visible !important;
   }
+  /* Unclip ancestors — board pane overflow otherwise truncates the ticket mid-body. */
+  html[data-print-ticket="1"] body,
+  html[data-print-ticket="1"] .app,
+  html[data-print-ticket="1"] #main,
+  html[data-print-ticket="1"] .panel-board,
+  html[data-print-ticket="1"] #cards,
+  html[data-print-ticket="1"] #ticketTrophy,
+  html[data-print-ticket="1"] #ticketTrophy .card-inner {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+  /* Collapse chrome that still occupies layout under visibility:hidden. */
+  html[data-print-ticket="1"] .skip-link,
+  html[data-print-ticket="1"] .topbar,
+  html[data-print-ticket="1"] .hero,
+  html[data-print-ticket="1"] .how-strip,
+  html[data-print-ticket="1"] .coach-banner,
+  html[data-print-ticket="1"] .story-progress,
+  html[data-print-ticket="1"] .panel-voice,
+  html[data-print-ticket="1"] .panel-telemetry,
+  html[data-print-ticket="1"] .judge-strip,
+  html[data-print-ticket="1"] .panel-board > .panel-head {
+    display: none !important;
+  }
+  html[data-print-ticket="1"] #main,
+  html[data-print-ticket="1"] .panel-board,
+  html[data-print-ticket="1"] #cards {
+    display: block !important;
+    width: 100% !important;
+  }
   html[data-print-ticket="1"] #ticketTrophy {
-    position: absolute !important;
-    left: 0; top: 0; width: 100%;
+    /* static (not absolute) so tall cards paginate across print pages */
+    position: static !important;
+    left: auto;
+    top: auto;
+    width: 100%;
     border: 2px solid #0A0A0A !important;
     box-shadow: none !important;
     background: #fff !important;
     color: #0A0A0A !important;
     padding: 24px !important;
     border-radius: 0 !important;
+    break-inside: auto;
+    page-break-inside: auto;
   }
   html[data-print-ticket="1"] .ticket-actions,
   html[data-print-ticket="1"] #printTicket,
@@ -2013,8 +2049,11 @@ html[data-theme="dark"] .ticket-actions .btn.is-copied {
   }
   html[data-print-ticket="1"] #ticketBody {
     max-height: none !important;
+    overflow: visible !important;
     white-space: pre-wrap !important;
     font-size: 11pt !important;
+    break-inside: auto;
+    page-break-inside: auto;
   }
 }
 
