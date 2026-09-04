@@ -23,7 +23,7 @@ window.OPS_SCENARIOS = {
       signal:
         "Out for delivery · ETA 16:00–18:00 SAST · Signature not required · Drop: Home · Front door · Item: Echo Dot Kids (blue).",
       blast:
-        "Matches Ring package silhouette and AMZL ETA; high confidence this is Lebo’s expected Echo Dot Kids parcel."
+        "Ring shows a parcel-shaped object and AMZL has an expected stop nearby — consistent with today’s order, but not proof of who is at the door."
     },
     context: {
       householdCalendar:
@@ -42,7 +42,7 @@ window.OPS_SCENARIOS = {
     },
     ticket: {
       id: "GUEST-10421",
-      title: "Guest code — claim Amazon parcel at front door (Ring-verified)",
+      title: "Simulated handoff plan — claim Amazon parcel at front door (sample ref)",
       severity: "Household · delivery",
       assets: "ring-front-door, order-702-8842101, alexa-echo-living, neighbour-thabo"
     }

@@ -16,11 +16,11 @@ Static deliverable with CSP in index.html, escapeHtml on all dynamic text, no se
 
 ### V. Simplicity / YAGNI
 Ship a static deliverable; prefer deleting chrome over adding panels.
-Quality is measurable via HTTP 200 and demo completion to GUEST-10421.
+Quality is measurable via HTTP 200, honest consent (refuse/approve), adaptive proposals from tool results, and a completed simulated handoff. `GUEST-10421` (and similar IDs) may appear as **sample reference labels** for continuity — never as functioning gate/door credentials or proof of visitor identity.
 
 ### VI. Observability of Agent Behavior
-Agentic behavior must be visible: tools timeline, session ID, phase pill (IDLE to TICKETED), and chat that reflects multi-turn state.
-Judges must see orchestration, not a forgetful chatbot.
+Agentic behavior must be visible: tools timeline, session ID, plan status (draft/queued/confirmed/superseded/refused), and chat that reflects multi-turn state.
+Judges must see orchestration that adapts to changed facts and respects consent — not a forgetful chatbot or a script that ignores refusals.
 
 ### VII. Accessibility and Performance Budgets
 Respect prefers-reduced-motion. Maintain keyboard paths (Enter, 1-4, D, ?, Esc).
@@ -30,15 +30,16 @@ Target calm motion under about 220ms when motion is allowed.
 ## Product Constraints
 
 - Author attribution: Tshiamo Komane, Africa/Johannesburg (SAST clock).
-- Scenarios: doorstep delivery (Ring + order to GUEST-10421) and bedtime (Fire TV + Alexa routine).
+- Scenarios: doorstep delivery (Ring + order → simulated handoff plan; sample ref may be GUEST-10421) and bedtime (Fire TV + Alexa routine → task handoff).
 - Offline mock only; never claim live Alexa hardware or live Ring/Orders/Fire TV.
+- Alexa+ **simulation** path per official hackathon rules does not require a specific SDK or MCP surface; MCP is optional supporting evidence.
 
 ## Development Workflow
 
 1. Amend or create Spec Kit feature artifacts under specs/.
 2. Constitution Check in plan.md must pass before implementation.
 3. Implement against tasks.md; mark tasks complete as work lands.
-4. Verify: HTTP 200, doorstep demo to GUEST-10421, bedtime path intact, vendor grep clean.
+4. Verify: HTTP 200, doorstep adaptive consent path, bedtime path intact, vendor grep clean, acceptance cases in specs/003.
 5. Update README / DEMO.md when UI labels or design language change.
 
 ## Governance
@@ -50,4 +51,7 @@ Pull requests must cite the relevant spec.md / plan.md / tasks.md paths.
 Reviewers verify Spec-First compliance, Amazon-native honesty, design restraint, security defaults, and measurable demo quality.
 Complexity must be justified in Complexity Tracking when a Constitution Check gate is waived.
 
-**Version**: 1.0.0 | **Ratified**: 2026-09-04 | **Last Amended**: 2026-09-04
+**Version**: 1.1.0 | **Ratified**: 2026-09-04 | **Last Amended**: 2026-09-04
+
+### Amendment 1.1.0
+Reason: Codex review (b264922) — success must not equal reaching a fixed artifact ID; consent and adaptation are the demonstration. Align with official Alexa+ simulation rules (MCP optional).

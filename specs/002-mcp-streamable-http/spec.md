@@ -14,7 +14,7 @@
 
 A developer or hackathon judge starts the Ops Concierge MCP server on localhost and lists/calls tools over Streamable HTTP. Tools match the product surface: `ring.query`, `order.lookup`, `session.ack`, `calendar.propose`, `notify.household`, `task.open`. Responses are simulated household fixtures (Ring, Orders, calendar, guest/task artefacts) — never Azure/GreenLake.
 
-**Why this priority**: Hackathon Alexa+ track requires a real self-hosted MCP over Streamable HTTP with protocol support at least **2025-11-25**.
+**Why this priority**: Useful supporting evidence for Alexa+ agent tooling. Official hackathon rules expressly allow the Alexa+ **simulation** path without requiring a particular SDK or MCP surface ([rules §4](https://amazonappdev2026.devpost.com/rules)). Protocol support at least **2025-11-25** when the server is run. **Amendment (2026-09-04):** Corrected earlier claim that the track *requires* MCP — it does not for simulation entries; keep the working server optional.
 
 **Independent Test**: Start server; SDK client or curl/session handshake lists six tools and successfully calls `session.ack`.
 

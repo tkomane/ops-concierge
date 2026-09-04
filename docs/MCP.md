@@ -43,6 +43,8 @@ Endpoints:
 | `http://127.0.0.1:8766/demo/call` | Browser JSON bridge (`POST {"tool","arguments"}`) |
 | `http://127.0.0.1:8766/demo/tools` | Tool names for the UI |
 
+**CORS (local UI only):** `/healthz`, `/demo/call`, and `/demo/tools` echo `Access-Control-Allow-Origin` solely for `http://127.0.0.1:8765` and `http://localhost:8765` (the static `serve.py` UI). Untrusted Origins get no ACAO (never `*`). Bridge JSON errors use `source: "bridge"` with `error: {code, message}` so failures are not confused with client-side mock fallback.
+
 ## SDK client smoke
 
 ```python

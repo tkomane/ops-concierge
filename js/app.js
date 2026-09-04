@@ -3,10 +3,18 @@
 
   const $ = (sel) => document.querySelector(sel);
 
-  /* Human status labels (keep phase keys for logic) */
+  /* Human status labels — dual-map new adaptive phases + legacy chrome keys */
   const PHASE_SHORT = {
     idle: "Ready",
-    ingested: "Listening",
+    inspecting: "Working",
+    proposed: "Working",
+    superseded: "Working",
+    approved: "Working",
+    acted: "Done",
+    refused: "Ready",
+    failed: "Working",
+    /* legacy keys kept for story-dot mapping */
+    ingested: "Working",
     ack: "Working",
     correlated: "Working",
     windowed: "Working",
@@ -15,12 +23,39 @@
 
   const PHASE_LABEL = {
     idle: "Ready — pick a doorstep or bedtime story",
-    ingested: "Listening — two home signals are on the board",
+    inspecting: "Working — checking doorbell, package, and household context",
+    proposed: "Working — handoff plan ready for your approval",
+    superseded: "Working — prior plan superseded; review the new proposal",
+    approved: "Working — approval recorded; running allowed action",
+    acted: "Done — simulated handoff confirmed (sample reference only)",
+    refused: "Ready — plan refused; nothing was sent",
+    failed: "Working — action failed; no false success",
+    ingested: "Working — two home signals are on the board",
     ack: "Working — holding this moment in session",
     correlated: "Working — connecting door, package, and calendar",
     windowed: "Working — quiet-hours plan is ready",
-    ticketed: "Done — guest code or task is ready to copy"
+    ticketed: "Done — handoff card ready to copy (sample ref)"
   };
+
+  /** Map adaptive phases onto legacy story-dot phases for chrome. */
+  function uiPhase(phase) {
+    const map = {
+      idle: "idle",
+      inspecting: "ingested",
+      proposed: "windowed",
+      superseded: "windowed",
+      approved: "windowed",
+      acted: "ticketed",
+      refused: "windowed",
+      failed: "windowed",
+      ingested: "ingested",
+      ack: "ack",
+      correlated: "correlated",
+      windowed: "windowed",
+      ticketed: "ticketed"
+    };
+    return map[phase] || phase || "idle";
+  }
 
   /* Friendly step names; tool ids stay as secondary captions for judges */
   const TOOL_FRIENDLY = {
@@ -51,6 +86,10 @@
       '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>'
   };
 
+  const store = window.OpsState
+    ? window.OpsState.createStore({ scenarios: window.OPS_SCENARIOS })
+    : null;
+
   const state = {
     scenarioId: null,
     scenario: null,
@@ -60,10 +99,80 @@
     messages: [],
     thinking: false,
     sessionId: "sess-" + Date.now().toString(36),
-    chipItems: []
+    chipItems: [],
+    lastResults: [],
+    forceToolFail: false,
+    proposal: null,
+    queuedNotify: false
   };
 
   let toastTimer = null;
+  let opSeq = 0;
+
+  function nextOpId(tool) {
+    opSeq += 1;
+    return "op_" + (tool || "x").replace(/\./g, "_") + "_" + opSeq;
+  }
+
+  function persistDemo() {
+    if (!store) return;
+    try {
+      store.save();
+    } catch (_e) {}
+  }
+
+  function hydrateUiFromSession(snap) {
+    if (!snap) {
+      state.scenarioId = null;
+      state.scenario = null;
+      state.phase = "idle";
+      state.ack = false;
+      state.tools = [];
+      state.messages = [];
+      state.sessionId = "sess-" + Date.now().toString(36);
+      state.lastResults = [];
+      state.proposal = null;
+      state.queuedNotify = false;
+      return;
+    }
+    state.scenarioId = snap.storyId || null;
+    state.scenario = snap.fixture ? window.OpsState.deepClone(snap.fixture) : null;
+    state.phase = snap.phase || "idle";
+    state.ack = ["proposed", "superseded", "approved", "acted", "refused", "failed", "ack", "correlated", "windowed", "ticketed"].indexOf(state.phase) !== -1;
+    state.tools = Array.isArray(snap.tools) ? snap.tools.slice() : [];
+    state.messages = Array.isArray(snap.messages) ? snap.messages.slice() : [];
+    state.sessionId = snap.sessionId || state.sessionId;
+    state.proposal = null;
+    if (snap.selectedPlanId && Array.isArray(snap.proposals)) {
+      for (let i = 0; i < snap.proposals.length; i++) {
+        if (snap.proposals[i].planId === snap.selectedPlanId) {
+          state.proposal = window.OpsState.deepClone(snap.proposals[i]);
+          break;
+        }
+      }
+    }
+    state.queuedNotify = !!(state.proposal && state.proposal.status === "queued");
+  }
+
+  function syncSessionMessagesTools() {
+    if (!store || !store.getActive()) return;
+    const s = store.getSession();
+    if (!s) return;
+    /* mutate live session via setFacts / direct — store snapshots are clones;
+       keep tools/messages on UI state and flush on save via custom path */
+    try {
+      const live = store.snapshot();
+      const id = live.active;
+      if (!id || !live.sessions[id]) return;
+      live.sessions[id].messages = state.messages.slice();
+      live.sessions[id].tools = state.tools.slice();
+      live.sessions[id].phase = state.phase;
+      live.sessions[id].sessionId = state.sessionId;
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(store.STORAGE_KEY, JSON.stringify(live));
+      }
+    } catch (_e) {}
+  }
 
   function escapeHtml(str) {
     return String(str)
@@ -150,6 +259,35 @@
       "Try “Start bedtime” or press B",
       "Type a question, or tap a suggestion below"
     ],
+    inspecting: [
+      "Helper is checking home signals…",
+      "Sit tight — read-only inspection in progress"
+    ],
+    proposed: [
+      "Say “approve” or “make the guest code” to confirm",
+      "Or “neighbour unavailable” / “not yet” / “What is a guest code?”"
+    ],
+    superseded: [
+      "Review the new plan, then approve or decline",
+      "Ask what changed…"
+    ],
+    approved: [
+      "Running the approved action…",
+      "Hang on — confirming the simulated handoff"
+    ],
+    acted: [
+      "Copy the handoff card from the board, or ask another question",
+      "Try the other story — Doorstep or Bedtime"
+    ],
+    refused: [
+      "Plan refused — say “approve” only if you change your mind after a replan",
+      "Try the other story, or reset"
+    ],
+    failed: [
+      "Action failed — try again, or decline",
+      "Ask what’s still risky…"
+    ],
+    /* legacy keys */
     ingested: [
       "Say “got it” to hold this moment",
       "Ask what’s on the board…"
@@ -347,9 +485,10 @@
       if (t.status === "ok" && BED_TOOL_MAP[t.name]) completed.add(BED_TOOL_MAP[t.name]);
     });
     let current = runningTool && BED_TOOL_MAP[runningTool] ? BED_TOOL_MAP[runningTool] : null;
-    if (!current && state.phase === "ticketed") current = "task";
-    else if (!current && ["windowed", "correlated"].includes(state.phase)) current = "quiet";
-    else if (!current && ["ingested", "ack"].includes(state.phase)) current = "firetv";
+    const bedUi = uiPhase(state.phase);
+    if (!current && bedUi === "ticketed") current = "task";
+    else if (!current && ["windowed", "correlated"].includes(bedUi)) current = "quiet";
+    else if (!current && ["ingested", "ack"].includes(bedUi)) current = "firetv";
 
     const phaseBoost = {
       idle: -1,
@@ -359,7 +498,7 @@
       windowed: 1,
       ticketed: 2
     };
-    const pIdx = phaseBoost[state.phase] ?? -1;
+    const pIdx = phaseBoost[bedUi] ?? -1;
     if (pIdx >= 0) completed.add("firetv");
     if (pIdx >= 1) completed.add("quiet");
     if (pIdx >= 2) completed.add("task");
@@ -411,7 +550,7 @@
       if (t.status === "ok" && map[t.name]) completed.add(map[t.name]);
     });
     let current = runningTool && map[runningTool] ? map[runningTool] : null;
-    if (!current && state.phase === "ticketed") current = "guest";
+    if (!current && uiPhase(state.phase) === "ticketed") current = "guest";
 
     const phaseOrder = {
       idle: -1,
@@ -421,7 +560,7 @@
       windowed: 2,
       ticketed: 3
     };
-    const pIdx = phaseOrder[state.phase] ?? -1;
+    const pIdx = phaseOrder[uiPhase(state.phase)] ?? -1;
     if (id === "doorstep") {
       if (pIdx >= 0) completed.add("door");
       if (pIdx >= 0 && state.tools.some((t) => t.name === "order.lookup" && t.status === "ok"))
@@ -503,9 +642,10 @@
     const outcome =
       state.scenarioId === "doorstep" ? "Guest code" : "Bedtime task";
     if (label) {
+      const done = uiPhase(state.phase) === "ticketed";
       label.textContent =
         (names[state.scenarioId] || "Story") +
-        (state.phase === "ticketed" ? " · " + outcome + " ready" : " · in progress");
+        (done ? " · " + outcome + " ready" : " · in progress");
     }
     // Rename last dot for scenario
     const last = document.querySelector('.story-dot[data-phase="ticketed"] .dot-name');
@@ -515,7 +655,7 @@
       else last.textContent = "Code / Task";
     }
 
-    const idx = STORY_PHASES.indexOf(state.phase);
+    const idx = STORY_PHASES.indexOf(uiPhase(state.phase));
     document.querySelectorAll(".story-dot").forEach((dot) => {
       const p = dot.getAttribute("data-phase");
       const di = STORY_PHASES.indexOf(p);
@@ -553,6 +693,11 @@
     const boardTag = $("#boardTag");
     if (!state.scenario) {
       boardTag.textContent = "Ready";
+    } else if (state.proposal && state.proposal.recipient) {
+      boardTag.textContent =
+        (state.proposal.recipient.name || "Plan") +
+        " · " +
+        (state.proposal.status || "draft");
     } else {
       boardTag.textContent = state.scenario.ticket.id;
     }
@@ -624,22 +769,83 @@
     }
   }
 
-  async function runTool(name, meta, work) {
+  async function runTool(name, meta, work, opts) {
+    opts = opts || {};
     const i = pushTool(name, "running", meta);
     await sleep(420 + Math.random() * 280);
+    const opId = nextOpId(name);
+
+    if (state.forceToolFail || (typeof window !== "undefined" && window.__OPS_FORCE_TOOL_FAIL)) {
+      const fail = {
+        ok: false,
+        source: "mock",
+        operationId: opId,
+        tool: name,
+        observations: null,
+        outcome: null,
+        error: { code: "injected_failure", message: "Simulated tool failure (demo inject)" },
+        meta: "FAIL · injected · " + name
+      };
+      updateTool(i, "err", fail.meta);
+      state.lastResults.push(fail);
+      return fail;
+    }
+
     if (window.OpsMcpClient && window.OpsMcpClient.isEnabled()) {
       try {
         const live = await window.OpsMcpClient.callTool(name, mcpArgsFor(name));
         if (live && live.meta) {
-          updateTool(i, "ok", live.meta + " · mcp");
-          return { meta: live.meta + " · mcp", detail: live.detail };
+          const result = {
+            ok: true,
+            source: "bridge",
+            operationId: opId,
+            tool: name,
+            observations: (live.detail && live.detail.observations) || { summary: live.meta },
+            outcome: live.detail || {},
+            error: null,
+            meta: live.meta + " · bridge"
+          };
+          updateTool(i, "ok", result.meta);
+          state.lastResults.push(result);
+          return result;
+        }
+        /* labelled mock fallback — bridge unavailable / null */
+        if (!opts.allowMockFallback && opts.requireBridge) {
+          const fail = {
+            ok: false,
+            source: "bridge",
+            operationId: opId,
+            tool: name,
+            observations: null,
+            outcome: null,
+            error: { code: "bridge_unavailable", message: "Bridge call failed; not treating as success" },
+            meta: "FAIL · bridge unavailable · labelled (no silent success)"
+          };
+          updateTool(i, "err", fail.meta);
+          state.lastResults.push(fail);
+          return fail;
         }
       } catch (_err) {
-        /* fall through to mock */
+        /* labelled fallthrough to mock below */
       }
     }
-    const result = await work();
-    updateTool(i, "ok", result.meta || meta);
+    const raw = await work();
+    const result = {
+      ok: raw && raw.ok === false ? false : true,
+      source: "mock",
+      operationId: opId,
+      tool: name,
+      observations: (raw && raw.observations) || { summary: (raw && raw.meta) || meta },
+      outcome: (raw && raw.outcome) || (raw && raw.detail) || {},
+      error: (raw && raw.error) || null,
+      meta: ((raw && raw.meta) || meta) + " · mock"
+    };
+    if (!result.ok) {
+      updateTool(i, "err", result.meta);
+    } else {
+      updateTool(i, "ok", result.meta);
+    }
+    state.lastResults.push(result);
     return result;
   }
 
@@ -666,7 +872,7 @@
         `<div class="empty-state timeline-empty">` +
         `<span class="empty-ic" aria-hidden="true">${ICONS.task}</span>` +
         `<span class="empty-title">No steps yet</span>` +
-        `<p class="empty-copy">Doorstep: Door → Package → Quiet → Guest code. Bedtime: Fire TV → Quiet → Task. Same weight — pick either.</p>` +
+        `<p class="empty-copy">Doorstep: Door → Package → Quiet → Handoff plan. Bedtime: Fire TV → Quiet → Task. Pick either story.</p>` +
         `<div class="empty-ctas">` +
         `<button type="button" class="btn btn-outline" data-empty-cta="doorstep">Doorstep story</button>` +
         `<button type="button" class="btn btn-outline" data-empty-cta="bedtime">Bedtime story</button>` +
@@ -732,31 +938,85 @@
   }
 
   function ticketText(s) {
-    const kind = s.ticket.id.startsWith("GUEST")
-      ? "GUEST CODE / INSTRUCTION"
-      : "HOUSEHOLD TASK";
+    const plan = state.proposal;
+    const isGuest = s.ticket.id.startsWith("GUEST");
+    const kind = isGuest
+      ? "SIMULATED HANDOFF PLAN (sample reference — not a gate credential)"
+      : "HOUSEHOLD TASK (simulated)";
+    const status = plan ? plan.status : (uiPhase(state.phase) === "ticketed" ? "confirmed" : "draft");
+    const recipient = plan && plan.recipient
+      ? plan.recipient.name + " (" + (plan.recipient.role || "") + ")"
+      : "(see plan)";
+    const action = plan && plan.action ? plan.action : "(pending approval)";
+    const timing = plan && plan.timing && plan.timing.windowLabel
+      ? plan.timing.windowLabel
+      : s.window.proposed;
+    const assumptions = plan && plan.assumptions && plan.assumptions.length
+      ? plan.assumptions.map(function (a) { return "  - " + a; }).join("\n")
+      : "  - (none listed)";
+    const observations = plan && plan.observations && plan.observations.length
+      ? plan.observations.map(function (a) { return "  - " + a; }).join("\n")
+      : "  - " + s.primary.title;
     return [
-      `${kind}  ${s.ticket.id}`,
+      kind,
+      `Sample ref:  ${s.ticket.id}`,
       `Title:       ${s.ticket.title}`,
-      `Severity:    ${s.ticket.severity}`,
-      `Assets:      ${s.ticket.assets}`,
+      `Status:      ${status}`,
+      `Recipient:   ${recipient}`,
+      `Action:      ${action}`,
+      `Timing:      ${timing}`,
       `Timezone:    ${s.window.tz}`,
-      `Window:      ${s.window.proposed}`,
-      `Alternate:   ${s.window.alt}`,
+      ``,
+      `Observations:`,
+      observations,
+      `Assumptions:`,
+      assumptions,
       ``,
       `Primary:     ${s.primary.title} @ ${s.primary.fired}`,
-      `  ${s.primary.signal}`,
       `Secondary:   ${s.secondary.title} @ ${s.secondary.fired}`,
-      `  ${s.secondary.signal}`,
-      ``,
-      `Last activity: ${s.context.lastActivity}`,
-      `Similar:       ${s.context.similar}`,
-      `Rationale:     ${s.window.rationale}`,
       ``,
       `Opened by Ops Concierge (Alexa+ simulation) session ${state.sessionId}`,
       `Household: Tshiamo Komane — Africa/Johannesburg`,
-      `Status:    draft — copy into Notes / Shared Household list (offline demo)`
+      `Note:       Sample reference only — not an unlock / door credential`
     ].join("\n");
+  }
+
+  function proposalCardHtml(plan) {
+    if (!plan) return "";
+    const status = plan.status || "draft";
+    const recip = plan.recipient
+      ? escapeHtml(plan.recipient.name) + " · " + escapeHtml(plan.recipient.role || "")
+      : "—";
+    const timing = plan.timing && plan.timing.windowLabel
+      ? escapeHtml(plan.timing.windowLabel)
+      : "—";
+    const obs = (plan.observations || []).map(function (o) {
+      return "<li>" + escapeHtml(o) + "</li>";
+    }).join("");
+    const ass = (plan.assumptions || []).map(function (o) {
+      return "<li>" + escapeHtml(o) + "</li>";
+    }).join("");
+    const sample = plan.sampleRef
+      ? `<dt>Sample ref</dt><dd class="sample-ref muted">${escapeHtml(plan.sampleRef)} · not a gate credential</dd>`
+      : "";
+    return (
+      `<div class="card sev-warn proposal-card enter-stagger" id="proposalCard">` +
+      `<div class="card-inner">` +
+      `<p class="proposal-badge">Handoff proposal · ${escapeHtml(status)}</p>` +
+      `<div class="card-title-row"><span class="card-ic" aria-hidden="true">${ICONS.home}</span>` +
+      `<h3>Next decision</h3></div>` +
+      `<p class="card-note">${escapeHtml(plan.explanation || "Proposed plan from tool results.")}</p>` +
+      `<dl class="kv proposal-kv">` +
+      `<dt>Recipient</dt><dd><strong>${recip}</strong></dd>` +
+      `<dt>Action</dt><dd><strong>${escapeHtml(plan.action || "")}</strong></dd>` +
+      `<dt>Timing</dt><dd><strong>${timing}</strong></dd>` +
+      `<dt>Status</dt><dd><strong>${escapeHtml(status)}</strong></dd>` +
+      sample +
+      `</dl>` +
+      (obs ? `<details class="proposal-details"><summary>Observations</summary><ul>${obs}</ul></details>` : "") +
+      (ass ? `<details class="proposal-details"><summary>Assumptions</summary><ul>${ass}</ul></details>` : "") +
+      `</div></div>`
+    );
   }
 
   function renderCards() {
@@ -767,7 +1027,7 @@
         `<div class="empty-state">` +
         `<span class="empty-ic" aria-hidden="true">${ICONS.home}</span>` +
         `<span class="empty-title">Home is quiet right now</span>` +
-        `<p class="empty-copy"><strong>Doorstep</strong> → guest code <strong>GUEST-10421</strong>. <strong>Bedtime</strong> → Fire TV task <strong>TASK-22018</strong>. Both fill this board equally.</p>` +
+        `<p class="empty-copy"><strong>Doorstep</strong> → simulated handoff (sample <strong>GUEST-10421</strong>). <strong>Bedtime</strong> → Fire TV task <strong>TASK-22018</strong>. Approve before anything is sent.</p>` +
         `<div class="empty-ctas">` +
         `<button type="button" class="btn btn-outline" data-empty-cta="doorstep">Doorstep story</button>` +
         `<button type="button" class="btn btn-outline" data-empty-cta="bedtime">Bedtime story</button>` +
@@ -787,6 +1047,10 @@
       `<div class="alert-pair">${alertCard(s.primary, primaryIcon)}${alertCard(s.secondary, secondaryIcon)}</div>`
     );
 
+    if (state.proposal) {
+      parts.unshift(proposalCardHtml(state.proposal));
+    }
+
     if (state.ack) {
       parts.push(
         `<div class="card sev-info enter-stagger"><div class="card-inner">` +
@@ -798,7 +1062,7 @@
       );
     }
 
-    if (["correlated", "windowed", "ticketed"].includes(state.phase)) {
+    if (["correlated", "windowed", "ticketed", "proposed", "superseded", "approved", "acted", "refused", "failed"].includes(state.phase) || ["correlated", "windowed", "ticketed"].includes(uiPhase(state.phase))) {
       parts.push(
         `<div class="card sev-info enter-stagger"><div class="card-inner">` +
           `<div class="card-title-row"><span class="card-ic" aria-hidden="true">${ICONS.home}</span>` +
@@ -806,7 +1070,7 @@
           `<dl class="kv">` +
           `<dt>Story</dt><dd>${escapeHtml(
             s.id === "doorstep"
-              ? "The doorbell package matches today’s Amazon delivery — treat it as expected, not a stranger."
+              ? "Doorbell motion and an expected AMZL stop are consistent — still not identity proof. Proposal stays cautious until you approve."
               : "Kids Fire TV is still on past quiet hours, so bedtime can’t finish — a caregiver nudge will help."
           )}</dd>` +
           `<dt>Calendar</dt><dd>${escapeHtml(s.context.householdCalendar)}</dd>` +
@@ -816,21 +1080,21 @@
       );
     }
 
-    if (["windowed", "ticketed"].includes(state.phase)) {
+    if (["windowed", "ticketed", "proposed", "superseded", "approved", "acted", "refused"].includes(state.phase) || ["windowed", "ticketed"].includes(uiPhase(state.phase))) {
       parts.push(
         `<div class="card sev-warn enter-stagger"><div class="card-inner">` +
           `<div class="card-title-row"><span class="card-ic" aria-hidden="true">${ICONS.calendar}</span>` +
           `<h3>Quiet-hours plan (SAST)</h3></div>` +
           `<dl class="kv">` +
-          `<dt>Best time</dt><dd>${escapeHtml(s.window.proposed)}</dd>` +
+          `<dt>Best time</dt><dd>${escapeHtml((state.proposal && state.proposal.timing && state.proposal.timing.windowLabel) || s.window.proposed)}</dd>` +
           `<dt>Backup</dt><dd>${escapeHtml(s.window.alt)}</dd>` +
-          `<dt>Why</dt><dd>${escapeHtml(s.window.rationale)}</dd>` +
+          `<dt>Why</dt><dd>${escapeHtml((state.proposal && state.proposal.explanation) || s.window.rationale)}</dd>` +
           `<dt>Timezone</dt><dd>${escapeHtml(s.window.tz)}</dd>` +
           `</dl></div></div>`
       );
     }
 
-    if (state.phase === "ticketed") {
+    if (uiPhase(state.phase) === "ticketed" || state.phase === "acted") {
       const body = ticketText(s);
       const isGuest = s.ticket.id.startsWith("GUEST");
       const cardIcon = isGuest ? "guest" : "task";
@@ -939,7 +1203,7 @@
       });
     }
 
-    if (state.phase === "ticketed") {
+    if (uiPhase(state.phase) === "ticketed" || state.phase === "acted") {
       const trophy = $("#ticketTrophy");
       if (trophy) {
         requestAnimationFrame(() => {
@@ -978,28 +1242,209 @@
     });
   }
 
-  async function ingest(id) {
-    const scenario = window.OPS_SCENARIOS[id];
-    if (!scenario) return;
+  function mockObservationsFor(id, tool) {
+    const s = state.scenario;
+    if (!s) return { summary: tool };
+    if (id === "doorstep") {
+      if (tool === "ring.query") {
+        return {
+          motion: true,
+          parcelVisual: true,
+          summary: "ring motion at front door · parcel-shaped cardboard"
+        };
+      }
+      if (tool === "order.lookup") {
+        return {
+          eta: "16:00–18:00 SAST",
+          carrier: "AMZL",
+          matched: null,
+          summary: "AMZL stop nearby / expected delivery window"
+        };
+      }
+      if (tool === "calendar.propose") {
+        return { summary: s.window.proposed };
+      }
+      if (tool === "session.ack") {
+        return { summary: "ACK session " + state.sessionId };
+      }
+    } else {
+      if (tool === "ring.query") {
+        return { summary: "presence · kids room / living motion" };
+      }
+      if (tool === "order.lookup") {
+        return { summary: "Fire TV kids profile still streaming past quiet hours" };
+      }
+      if (tool === "calendar.propose") {
+        return { summary: s.window.proposed };
+      }
+    }
+    return { summary: tool };
+  }
+
+  async function autoInspectAndPropose(id) {
+    state.lastResults = [];
+    state.phase = "inspecting";
+    if (store) store.setPhase("inspecting");
+    syncChrome();
+
+    let results = [];
+    if (id === "doorstep") {
+      results.push(
+        await runTool("ring.query", "Front door · package zone", async () => ({
+          meta: "HIT " + state.scenario.primary.resource,
+          observations: mockObservationsFor(id, "ring.query")
+        }))
+      );
+      results.push(
+        await runTool("order.lookup", "Amazon delivery expectation", async () => ({
+          meta: "HIT " + state.scenario.secondary.resource,
+          observations: mockObservationsFor(id, "order.lookup")
+        }))
+      );
+      results.push(
+        await runTool("session.ack", "Keep household context", async () => ({
+          meta: "ACK " + state.scenario.ticket.id + " (local)",
+          observations: mockObservationsFor(id, "session.ack")
+        }))
+      );
+      results.push(
+        await runTool("calendar.propose", "Household calendar · quiet hours (SAST)", async () => ({
+          meta: state.scenario.window.proposed,
+          observations: mockObservationsFor(id, "calendar.propose")
+        }))
+      );
+    } else {
+      results.push(
+        await runTool("ring.query", "Kids room · living motion", async () => ({
+          meta: "HIT ring-kids-room / living",
+          observations: mockObservationsFor(id, "ring.query")
+        }))
+      );
+      results.push(
+        await runTool("order.lookup", "Fire TV session · routine", async () => ({
+          meta: "HIT " + state.scenario.primary.resource,
+          observations: mockObservationsFor(id, "order.lookup")
+        }))
+      );
+      results.push(
+        await runTool("session.ack", "Keep bedtime context", async () => ({
+          meta: "ACK " + state.scenario.ticket.id + " (local)",
+          observations: mockObservationsFor(id, "session.ack")
+        }))
+      );
+      results.push(
+        await runTool("calendar.propose", "Quiet hours / bedtime window (SAST)", async () => ({
+          meta: state.scenario.window.proposed,
+          observations: mockObservationsFor(id, "calendar.propose")
+        }))
+      );
+    }
+
+    state.ack = true;
+    const facts = store ? store.getFacts() : {};
+    const proposal = window.OpsPlanner
+      ? window.OpsPlanner.buildProposal({
+          storyId: id,
+          results: results,
+          facts: facts,
+          fixture: state.scenario,
+          sampleRef: state.scenario.ticket.id
+        })
+      : {
+          planId: "plan_fallback",
+          status: "draft",
+          recipient: { name: id === "doorstep" ? "Thabo" : "Mira", role: id === "doorstep" ? "neighbour" : "parent" },
+          action: id === "doorstep" ? "notify_handoff" : "caregiver_nudge",
+          timing: { windowLabel: state.scenario.window.proposed, timezone: "Africa/Johannesburg" },
+          observations: ["inspection complete"],
+          assumptions: ["demo fallback planner"],
+          explanation: "Fallback proposal",
+          sampleRef: state.scenario.ticket.id
+        };
+
+    state.proposal = proposal;
+    if (store) store.setProposal(proposal);
+    state.phase = "proposed";
+    return proposal;
+  }
+
+  async function ingest(id, opts) {
+    opts = opts || {};
+    if (!window.OPS_SCENARIOS[id]) return;
+
     const prevId = state.scenarioId;
     const switching =
       prevId && prevId !== id && state.phase && state.phase !== "idle";
-    state.scenarioId = id;
-    state.scenario = scenario;
-    state.phase = "ingested";
-    state.ack = false;
-    state.tools = [];
-    state.messages = [];
-    state.sessionId = "sess-" + Date.now().toString(36);
+
+    /* Immutable seeds: always clone via OpsState — never mutate OPS_SCENARIOS */
+    let snap;
+    if (store) {
+      if (opts.resume && store.getSession(id) && store.getSession(id).fixture) {
+        store.switchStory(id);
+        snap = store.getSession(id);
+      } else if (switching && !opts.fresh) {
+        /* pause prior; start or resume target */
+        store.switchStory(id);
+        const existing = store.getSession(id);
+        if (existing && existing.fixture && existing.phase !== "idle" && !opts.forceRestart) {
+          snap = existing;
+        } else {
+          snap = store.startStory(id, { phase: "inspecting" });
+        }
+      } else {
+        snap = store.resetFresh(id);
+      }
+      hydrateUiFromSession(snap);
+    } else {
+      state.scenarioId = id;
+      state.scenario = JSON.parse(JSON.stringify(window.OPS_SCENARIOS[id]));
+      state.phase = "inspecting";
+      state.ack = false;
+      state.tools = [];
+      state.messages = [];
+      state.sessionId = "sess-" + Date.now().toString(36);
+      state.proposal = null;
+      state.lastResults = [];
+    }
+
+    /* If resuming a mid-plan session, restore UI without re-inspecting */
+    if (
+      opts.resume ||
+      (switching &&
+        snap &&
+        snap.phase &&
+        snap.phase !== "idle" &&
+        snap.phase !== "inspecting" &&
+        snap.selectedPlanId &&
+        !opts.forceRestart &&
+        !opts.fresh)
+    ) {
+      setThinking(false);
+      resetHowStrip();
+      highlightHow(id);
+      syncChrome();
+      announce(id === "doorstep" ? "Resumed doorstep story" : "Resumed bedtime story");
+      pushMsg(
+        "agent",
+        "Back to the " +
+          id +
+          " story — your previous plan and status are still here. Selected plan stays the source of truth."
+      );
+      setChips(proposalChips());
+      renderCards();
+      renderTimeline();
+      renderChat();
+      persistDemo();
+      return;
+    }
+
     setThinking(true);
     resetHowStrip();
     highlightHow(id);
     syncChrome();
     announce(
       switching
-        ? (id === "doorstep"
-            ? "Switching to doorstep story"
-            : "Switching to bedtime story")
+        ? (id === "doorstep" ? "Switching to doorstep story" : "Switching to bedtime story")
         : id === "doorstep"
           ? "Starting doorstep story"
           : "Starting bedtime story"
@@ -1009,7 +1454,8 @@
       coach.hidden = true;
       try { localStorage.setItem(COACH_KEY, "1"); } catch (_) {}
     }
-    pushMsg("user", scenario.spokenStart);
+
+    pushMsg("user", state.scenario.spokenStart);
     if (switching) {
       const fromLabel = prevId === "doorstep" ? "doorstep" : "bedtime";
       const toLabel = id === "doorstep" ? "doorstep" : "bedtime";
@@ -1023,44 +1469,320 @@
       );
       showToast("Switched to " + toLabel + " story", "ok");
     }
+
     pushMsg(
       "agent",
-      "Okay — I’m checking what’s happening at home. I’ll look at the pieces that belong together, then we’ll make a simple plan."
+      id === "doorstep"
+        ? "Your parcel arrived during bedtime prep. I’m checking the doorbell, expected order, and household context automatically — then I’ll propose a handoff plan for your approval."
+        : "Okay — I’m checking Fire TV and bedtime context automatically, then I’ll propose a quiet-hours plan for your approval."
     );
 
-    if (id === "doorstep") {
-      await runTool("ring.query", "Front door · package zone", async () => ({
-        meta: "HIT " + scenario.primary.resource
-      }));
-      await runTool("order.lookup", "Amazon delivery expectation", async () => ({
-        meta: "HIT " + scenario.secondary.resource
-      }));
-    } else {
-      await runTool("ring.query", "Kids room · living motion", async () => ({
-        meta: "HIT ring-kids-room / living"
-      }));
-      await runTool("order.lookup", "Fire TV session · routine", async () => ({
-        meta: "HIT " + scenario.primary.resource
-      }));
-    }
+    const proposal = await autoInspectAndPropose(id);
+    setThinking(false);
 
-    state.phase = "ingested";
+    const problem =
+      id === "doorstep"
+        ? "Parcel at the stoop while Mira is still at pickup."
+        : "Fire TV still on past quiet hours.";
+    const decision =
+      "Send " +
+      (proposal.recipient && proposal.recipient.name ? proposal.recipient.name : "the recipient") +
+      " the handoff plan?";
+
+    pushMsg(
+      "agent",
+      problem +
+        " " +
+        (proposal.explanation || "") +
+        " Recipient: " +
+        (proposal.recipient && proposal.recipient.name) +
+        "; action: " +
+        proposal.action +
+        "; timing: " +
+        (proposal.timing && proposal.timing.windowLabel) +
+        "; status: " +
+        proposal.status +
+        ". " +
+        decision +
+        " (Sample ref " +
+        (proposal.sampleRef || state.scenario.ticket.id) +
+        " is documentation only — not a gate credential.)"
+    );
+
+    setChips(proposalChips());
+    renderCards();
+    renderTimeline();
+    syncChrome();
+    syncSessionMessagesTools();
+    persistDemo();
+  }
+
+  function proposalChips() {
+    const bed = state.scenarioId === "bedtime";
+    const phase = state.phase;
+    if (phase === "acted") {
+      return ["What’s still risky?", "Try the other story", "Reset demo", "Summarise for the family"];
+    }
+    if (phase === "refused") {
+      return [
+        bed ? "Make the bedtime task" : "Approve the plan",
+        "Neighbour unavailable",
+        "What is a guest code?",
+        "Try the other story"
+      ];
+    }
+    if (phase === "failed") {
+      return [
+        bed ? "Make the bedtime task" : "Approve the plan",
+        "Not yet",
+        "What’s still risky?",
+        "Try the other story"
+      ];
+    }
+    return [
+      bed ? "Make the bedtime task" : "Make the guest code",
+      "Neighbour unavailable",
+      "What is a guest code?",
+      "Not yet"
+    ];
+  }
+
+  async function handleDecline(utterance) {
+    pushMsg("user", utterance);
+    if (store && store.getActive()) {
+      store.refuse();
+    }
+    if (state.proposal) {
+      state.proposal = Object.assign({}, state.proposal, { status: "refused" });
+    }
+    state.phase = "refused";
+    pushMsg(
+      "agent",
+      "Understood — I won’t create or send anything. No notification, unlock, or completion. Your exact words stay in this chat."
+    );
+    setChips(proposalChips());
+    renderCards();
+    syncChrome();
+    syncSessionMessagesTools();
+    persistDemo();
+  }
+
+  async function handleAskInfo(utterance) {
+    pushMsg("user", utterance);
+    pushMsg(
+      "agent",
+      "A guest code here is a sample handoff artifact (e.g. GUEST-10421) — a simulated instruction card for the household demo. It is not a working gate or door credential, and asking about it does not create one. Approve an explicit plan if you want the simulation to open the card."
+    );
+    setChips(proposalChips());
+    renderCards();
+    syncChrome();
+  }
+
+  async function handleReplan(utterance) {
+    pushMsg("user", utterance);
+    if (!state.scenario) {
+      pushMsg("agent", "Nothing on the board yet. Try a doorstep or bedtime story first.");
+      return;
+    }
+    setThinking(true);
+    const facts = { neighbourAvailable: false, neighbourUnavailable: true };
+    if (store) store.setFacts(facts);
+    const prior = state.proposal;
+    const replanned = window.OpsPlanner
+      ? window.OpsPlanner.replan({
+          storyId: state.scenarioId,
+          results: state.lastResults,
+          facts: facts,
+          priorProposal: prior,
+          fixture: state.scenario,
+          sampleRef: state.scenario.ticket.id
+        })
+      : null;
+    if (!replanned) {
+      setThinking(false);
+      pushMsg("agent", "I couldn’t rebuild the plan — planner unavailable.");
+      return;
+    }
+    if (store) store.supersede(replanned.proposal);
+    state.proposal = replanned.proposal;
+    state.phase = "proposed";
+    /* keep fixture clone honest — backup choice only on session */
+    if (store) {
+      store.setBackupChoice({ window: state.scenario.window.alt });
+      store.mutateFixture(function (f) {
+        if (f && f.window) {
+          f.window.proposed = replanned.proposal.timing.windowLabel;
+        }
+      });
+      state.scenario = store.getFixture();
+    }
     setThinking(false);
     pushMsg(
       "agent",
-      "I see two things for “" +
-        scenario.title +
-        "”: " +
-        scenario.primary.title +
-        ", and " +
-        scenario.secondary.title +
-        ". Say “got it” and I’ll hold them here — then we’ll check the calendar and quiet hours."
+      "Got it — neighbour unavailable. Prior plan " +
+        (prior && prior.planId ? prior.planId : "") +
+        " is superseded. New plan: recipient " +
+        replanned.proposal.recipient.name +
+        ", action " +
+        replanned.proposal.action +
+        ", timing " +
+        replanned.proposal.timing.windowLabel +
+        ". " +
+        replanned.proposal.explanation
     );
-    setChips([
-      "Got it — hold both",
-      "Connect the dots",
-      "Why does this matter?"
-    ]);
+    setChips(proposalChips());
+    renderCards();
+    syncChrome();
+    syncSessionMessagesTools();
+    persistDemo();
+  }
+
+  async function handleApprove(utterance) {
+    pushMsg("user", utterance);
+    if (!state.scenario || !state.proposal) {
+      pushMsg("agent", "Nothing to approve yet. Start Doorstep or Bedtime first.");
+      return;
+    }
+    const planId = state.proposal.planId;
+    let decision = { ok: true, idempotent: false, planId: planId };
+    if (store) {
+      decision = store.approve(planId);
+    }
+    if (!decision.ok) {
+      pushMsg(
+        "agent",
+        decision.message || "Approval rejected."
+      );
+      setChips(proposalChips());
+      renderCards();
+      syncChrome();
+      return;
+    }
+    if (decision.idempotent) {
+      pushMsg(
+        "agent",
+        "Already approved — no duplicate notification or card. Status stays confirmed for plan " +
+          planId +
+          "."
+      );
+      setChips(proposalChips());
+      renderCards();
+      syncChrome();
+      return;
+    }
+
+    state.phase = "approved";
+    if (state.proposal) state.proposal = Object.assign({}, state.proposal, { status: "confirmed" });
+    setThinking(true);
+
+    /* Distinct draft → queued → confirmed */
+    pushMsg("agent", "Approval recorded. Queuing a simulated household nudge, then confirming the handoff card…");
+    if (state.proposal) {
+      state.proposal = Object.assign({}, state.proposal, { status: "queued" });
+      state.queuedNotify = true;
+      renderCards();
+    }
+
+    const notify = await runTool("notify.household", "Queue a household nudge", async () => ({
+      meta: "notify queued · sim",
+      observations: { summary: "notify queued" },
+      outcome: { queued: true }
+    }), { requireBridge: false });
+
+    if (!notify.ok) {
+      setThinking(false);
+      state.phase = "failed";
+      if (store) store.markFailed(notify.error);
+      if (state.proposal) state.proposal = Object.assign({}, state.proposal, { status: "draft" });
+      pushMsg(
+        "agent",
+        "Action failed — no false success. Source: " +
+          (notify.source || "unknown") +
+          ". " +
+          ((notify.error && notify.error.message) || "Tool error") +
+          " Recovery: fix the helper link, retry approval, or decline."
+      );
+      setChips(proposalChips());
+      renderCards();
+      syncChrome();
+      syncSessionMessagesTools();
+      persistDemo();
+      return;
+    }
+
+    const opened = await runTool("task.open", "Draft handoff card (local)", async () => ({
+      meta: state.scenario.ticket.id + " confirmed",
+      observations: { summary: "handoff card opened" },
+      outcome: { id: state.scenario.ticket.id, status: "confirmed" }
+    }), { requireBridge: false });
+
+    if (!opened.ok) {
+      setThinking(false);
+      state.phase = "failed";
+      if (store) store.markFailed(opened.error);
+      pushMsg(
+        "agent",
+        "Handoff card could not be opened — no false success. Source: " +
+          (opened.source || "unknown") +
+          ". " +
+          ((opened.error && opened.error.message) || "Tool error")
+      );
+      setChips(proposalChips());
+      renderCards();
+      syncChrome();
+      syncSessionMessagesTools();
+      persistDemo();
+      return;
+    }
+
+    if (state.proposal) {
+      state.proposal = Object.assign({}, state.proposal, { status: "confirmed" });
+      if (store) store.setProposal(state.proposal);
+    }
+    state.phase = "acted";
+    if (store) store.markActed(opened);
+    setThinking(false);
+    pushMsg(
+      "agent",
+      "Confirmed handoff for " +
+        (state.proposal.recipient && state.proposal.recipient.name) +
+        ". Simulated notification queued then confirmed. Sample ref " +
+        state.scenario.ticket.id +
+        " is ready to copy — it is not a gate credential. Draft, queued, and confirmed stayed distinct."
+    );
+    setChips(proposalChips());
+    renderCards();
+    syncChrome();
+    syncSessionMessagesTools();
+    persistDemo();
+  }
+
+  async function switchToOtherStory() {
+    const cur = state.scenarioId;
+    const other = cur === "doorstep" ? "bedtime" : cur === "bedtime" ? "doorstep" : "bedtime";
+    if (store && state.scenarioId) {
+      syncSessionMessagesTools();
+      persistDemo();
+    }
+    await ingest(other, { resume: true, forceRestart: false });
+  }
+
+  async function resetDemoFresh() {
+    if (store) {
+      const id = store.getActive() || state.scenarioId;
+      store.clear();
+      if (id) {
+        await ingest(id, { fresh: true, forceRestart: true });
+        return;
+      }
+    }
+    hydrateUiFromSession(null);
+    state.messages = [];
+    pushMsg(
+      "agent",
+      "Demo cleared. Seeds are pristine — a new Doorstep run will not inherit a prior backup choice."
+    );
+    setChips(["Someone’s at the door", "Start bedtime", "Show shortcuts"]);
     renderCards();
     renderTimeline();
     syncChrome();
@@ -1123,7 +1845,7 @@
 
     const line =
       state.scenarioId === "doorstep"
-        ? "Here’s the story: the doorbell package matches today’s Amazon delivery — same parcel. "
+        ? "Here’s the story: doorbell motion and an expected AMZL window are consistent with today’s order — still not a verified visitor identity. "
         : "Here’s the story: Fire TV is still on past quiet hours, so bedtime stalled. ";
 
     pushMsg(
@@ -1182,38 +1904,17 @@
   }
 
   async function openTicket() {
+    /* Legacy entry — route through explicit approve so refusal cannot reach here by substring. */
     if (!state.scenario) {
       pushMsg("agent", "Nothing on the board yet. Try a doorstep or bedtime story first.");
       return;
     }
-    if (state.phase !== "windowed" && state.phase !== "ticketed") {
-      await proposeWindow();
+    if (!state.proposal) {
+      setThinking(true);
+      await autoInspectAndPropose(state.scenarioId);
+      setThinking(false);
     }
-    setThinking(true);
-    pushMsg("user", artefactChip("make") + ".");
-    await runTool("task.open", "Draft guest/task card (local)", async () => ({
-      meta: state.scenario.ticket.id + " draft"
-    }));
-    await runTool("notify.household", "Queue a household nudge", async () => ({
-      meta: "notify queued · sim"
-    }));
-    state.phase = "ticketed";
-    setThinking(false);
-    pushMsg(
-      "agent",
-      "Your " +
-        (state.scenario.ticket.id.startsWith("GUEST") ? "guest code" : "bedtime task") +
-        " " +
-        state.scenario.ticket.id +
-        " is ready to copy. This chat stays open — ask about timing, risk, or what happened last anytime."
-    );
-    setChips([
-      "What’s still risky?",
-      "Try the other story",
-      "Summarise for the family"
-    ]);
-    renderCards();
-    syncChrome();
+    await handleApprove(artefactChip("make"));
   }
 
   function followup(text) {
@@ -1240,7 +1941,6 @@
     if (
       q.includes("alternate") ||
       q.includes("alt") ||
-      q.includes("neighbour") ||
       q.includes("auto-pause") ||
       q.includes("instead") ||
       q.includes("backup")
@@ -1251,8 +1951,22 @@
           s.window.alt +
           ". The card text will use this if you reopen it."
       );
-      s.window.proposed = s.window.alt + " (preferred)";
-      if (state.phase === "windowed" || state.phase === "ticketed") renderCards();
+      if (store) {
+        store.setBackupChoice({ window: s.window.alt });
+        store.mutateFixture(function (f) {
+          if (f && f.window) f.window.proposed = f.window.alt + " (preferred)";
+        });
+        state.scenario = store.getFixture();
+      } else {
+        /* never touch OPS_SCENARIOS seeds */
+        state.scenario = Object.assign({}, s, {
+          window: Object.assign({}, s.window, {
+            proposed: s.window.alt + " (preferred)"
+          })
+        });
+      }
+      if (["windowed", "ticketed", "proposed", "acted"].includes(state.phase) || ["windowed", "ticketed"].includes(uiPhase(state.phase)))
+        renderCards();
       return;
     }
     if (q.includes("summar") || q.includes("household") || q.includes("family") || q.includes("bridge")) {
@@ -1308,26 +2022,65 @@
       );
       return;
     }
-    const q = text.toLowerCase();
 
-    if (q.includes("show shortcuts") || q === "shortcuts" || q === "?") {
+    if (
+      text.toLowerCase() === "show shortcuts" ||
+      text.toLowerCase() === "shortcuts" ||
+      text === "?"
+    ) {
       openShortcuts();
       return;
     }
 
-    /* Artefact / plan chips before story restarts — "Make the bedtime task" must not re-ingest */
-    if (
-      q.includes("ticket") ||
-      q.includes("artefact") ||
-      q.includes("artifact") ||
-      q.includes("skip to") ||
-      q.includes("make the") ||
-      (q.includes("guest code") && !q.includes("doorstep")) ||
-      (q.includes("bedtime task") && !q.includes("start bedtime"))
-    ) {
-      await openTicket();
+    /* Intent first — NEVER broad substring approve (Don't make the guest code trap). */
+    const classified = window.OpsIntent
+      ? window.OpsIntent.classify(text, {
+          phase: state.phase,
+          storyId: state.scenarioId
+        })
+      : { intent: "ambiguous", utterance: text };
+    const intent = classified.intent;
+
+    if (intent === "decline") {
+      await handleDecline(classified.utterance || text);
       return;
     }
+    if (intent === "ask_info") {
+      await handleAskInfo(classified.utterance || text);
+      return;
+    }
+    if (intent === "replan_facts") {
+      await handleReplan(classified.utterance || text);
+      return;
+    }
+    if (intent === "approve") {
+      /* Artefact / plan chips before story restarts — explicit approve only */
+      await handleApprove(classified.utterance || text);
+      return;
+    }
+    if (intent === "reset") {
+      pushMsg("user", text);
+      await resetDemoFresh();
+      return;
+    }
+    if (intent === "switch_story") {
+      pushMsg("user", text);
+      const target = classified.target;
+      if (target === "bedtime" || target === "doorstep") {
+        await ingest(target, { resume: true });
+      } else {
+        await switchToOtherStory();
+      }
+      return;
+    }
+    if (intent === "inspect") {
+      pushMsg("user", text);
+      await ingest("doorstep", { fresh: !state.scenarioId });
+      return;
+    }
+
+    /* Legacy helper verbs still useful mid-flow when not caught above */
+    const q = text.toLowerCase();
     if (
       q.includes("acknowledge") ||
       q.includes("ack both") ||
@@ -1341,17 +2094,12 @@
     if (
       q.includes("correlat") ||
       q.includes("gather context") ||
-      q.includes("context") ||
-      q.includes("connect the dots") ||
-      q.includes("connect")
+      q.includes("connect the dots")
     ) {
       await correlate();
       return;
     }
     if (
-      q.includes("window") ||
-      q.includes("propose") ||
-      q.includes("presence") ||
       q.includes("quiet-hours") ||
       q.includes("quiet hours") ||
       q.includes("suggest a quiet")
@@ -1359,29 +2107,27 @@
       await proposeWindow();
       return;
     }
-    if (
-      q.includes("bedtime") ||
-      q.includes("fire tv") ||
-      q.includes("firetv") ||
-      q.includes("evening") ||
-      q.includes("other demo") ||
-      q.includes("other story")
-    ) {
+
+    /* Try the other story — both directions (not bedtime-only) */
+    if (q.includes("other demo") || q.includes("other story") || q.includes("try the other")) {
+      pushMsg("user", text);
+      await switchToOtherStory();
+      return;
+    }
+
+    if (q.includes("start bedtime") || (q.includes("bedtime") && !state.scenarioId)) {
       await ingest("bedtime");
       return;
     }
     if (
-      q.includes("demo") ||
       q.includes("doorstep") ||
-      q.includes("delivery") ||
-      q.includes("package") ||
-      q.includes("doorbell") ||
       q.includes("someone") ||
       q.includes("at the door")
     ) {
       await ingest("doorstep");
       return;
     }
+
     pushMsg("user", text);
     followup(text);
   }
@@ -1551,16 +2297,45 @@
       if (!document.hidden) refreshMcpPill(true);
     });
 
-    pushMsg(
-      "agent",
-      "Hi — I’m your home helper. Doorbell, packages, quiet hours, and Fire TV don’t usually talk to each other. I connect them into one clear plan: a guest code when someone’s at the door, or a bedtime task when the TV is still on. Try Doorstep or Bedtime below — no live device needed."
-    );
-    setChips(["Someone’s at the door", "Start bedtime", "Show shortcuts"]);
+    let resumed = false;
+    if (store) {
+      const loaded = store.load();
+      if (loaded && loaded.ok && loaded.active) {
+        hydrateUiFromSession(store.getSession(loaded.active));
+        resumed = !!(state.scenario && state.phase && state.phase !== "idle");
+      }
+    }
+
+    if (resumed) {
+      pushMsg(
+        "agent",
+        "Welcome back — restored synthetic demo state (ops-demo-v1). Your " +
+          state.scenarioId +
+          " plan is still here. Say “reset” or tap Reset demo to clear."
+      );
+      setChips(
+        state.phase === "acted"
+          ? ["Try the other story", "Reset demo", "What’s still risky?", "Show shortcuts"]
+          : proposalChips().concat(["Reset demo"]).slice(0, 4)
+      );
+    } else {
+      pushMsg(
+        "agent",
+        "Hi — I’m your home helper. Doorbell, packages, quiet hours, and Fire TV don’t usually talk to each other. I connect them into one clear plan: a guest code when someone’s at the door, or a bedtime task when the TV is still on. Try Doorstep or Bedtime below — no live device needed."
+      );
+      setChips(["Someone’s at the door", "Start bedtime", "Show shortcuts"]);
+    }
     renderCards();
     renderTimeline();
+    renderChat();
     syncChrome();
     syncSendEnabled();
   }
+
+  /* Test/demo hooks — not product chrome */
+  window.__OPS_STORE = store;
+  window.__OPS_GET_STATE = function () { return state; };
+  window.__OPS_SET_FORCE_FAIL = function (v) { state.forceToolFail = !!v; };
 
   document.addEventListener("DOMContentLoaded", bind);
 })();

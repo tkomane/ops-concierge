@@ -1,0 +1,406 @@
+#!/usr/bin/env node
+/**
+ * Behavioural unit tests for OpsState / OpsPlanner / OpsIntent.
+ * Run: node --test tests/adaptive_flow_node_test.js
+ * (Also invoked from tests/test_adaptive_flow.py)
+ */
+"use strict";
+
+const { describe, it, beforeEach } = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
+
+const ROOT = path.resolve(__dirname, "..");
+
+function loadScripts() {
+  const sandbox = {
+    console,
+    Date,
+    JSON,
+    Math,
+    Object,
+    Array,
+    String,
+    Number,
+    Boolean,
+    Error,
+    RegExp,
+    structuredClone: typeof structuredClone === "function" ? structuredClone : undefined,
+    module: { exports: {} },
+    exports: {},
+    globalThis: null
+  };
+  sandbox.globalThis = sandbox;
+  sandbox.window = sandbox;
+
+  const mem = Object.create(null);
+  sandbox.localStorage = {
+    getItem: (k) => (Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null),
+    setItem: (k, v) => {
+      mem[k] = String(v);
+    },
+    removeItem: (k) => {
+      delete mem[k];
+    },
+    _mem: mem
+  };
+
+  const files = [
+    "js/scenarios.js",
+    "js/session-state.js",
+    "js/planner.js",
+    "js/intent.js"
+  ];
+  for (const rel of files) {
+    const code = fs.readFileSync(path.join(ROOT, rel), "utf8");
+    vm.runInNewContext(code, sandbox, { filename: rel });
+  }
+  return sandbox;
+}
+
+describe("OpsIntent — refusal vs approve vs ask_info", () => {
+  let OpsIntent;
+  beforeEach(() => {
+    ({ OpsIntent } = loadScripts());
+  });
+
+  it("Don't make the guest code → decline", () => {
+    assert.equal(OpsIntent.classify("Don't make the guest code").intent, "decline");
+    assert.equal(OpsIntent.classify("Don’t make the guest code").intent, "decline");
+    assert.equal(OpsIntent.classify("do not make the guest code").intent, "decline");
+  });
+
+  it("not yet → decline", () => {
+    assert.equal(OpsIntent.classify("not yet").intent, "decline");
+    assert.equal(OpsIntent.classify("Not yet — keep planning").intent, "decline");
+  });
+
+  it("What is a guest code? → ask_info", () => {
+    assert.equal(OpsIntent.classify("What is a guest code?").intent, "ask_info");
+    assert.equal(OpsIntent.classify("what is a guest code").intent, "ask_info");
+  });
+
+  it("make the guest code → approve only when explicit positive", () => {
+    assert.equal(OpsIntent.classify("make the guest code").intent, "approve");
+    assert.equal(OpsIntent.classify("Make the guest code").intent, "approve");
+    assert.equal(OpsIntent.classify("please make the guest code").intent, "approve");
+    assert.equal(OpsIntent.classify("approve").intent, "approve");
+    assert.equal(OpsIntent.classify("go ahead").intent, "approve");
+  });
+
+  it("mere guest-code mention is not approve", () => {
+    assert.notEqual(OpsIntent.classify("guest code").intent, "approve");
+    assert.notEqual(OpsIntent.classify("about the guest code").intent, "approve");
+  });
+
+  it("neighbour unavailable → replan_facts", () => {
+    assert.equal(
+      OpsIntent.classify("The neighbour is unavailable").intent,
+      "replan_facts"
+    );
+    assert.equal(OpsIntent.classify("Thabo can't make it").intent, "replan_facts");
+  });
+});
+
+describe("OpsPlanner — proposals and replan", () => {
+  let OpsPlanner;
+  beforeEach(() => {
+    ({ OpsPlanner } = loadScripts());
+    OpsPlanner._resetSeq(0);
+  });
+
+  const ringOk = {
+    ok: true,
+    source: "mock",
+    operationId: "op_ring_1",
+    tool: "ring.query",
+    observations: {
+      motion: true,
+      zone: "stoop",
+      summary: "ring motion at front door — person + cardboard parcel"
+    },
+    outcome: {},
+    error: null,
+    meta: "ring motion at front door"
+  };
+  const orderOk = {
+    ok: true,
+    source: "mock",
+    operationId: "op_order_1",
+    tool: "order.lookup",
+    observations: {
+      eta: "16:00–18:00",
+      carrier: "AMZL",
+      summary: "AMZL stop nearby"
+    },
+    outcome: {},
+    error: null,
+    meta: "AMZL stop nearby"
+  };
+
+  it("builds doorstep proposal with Thabo + optional sampleRef", () => {
+    const p = OpsPlanner.buildProposal({
+      storyId: "doorstep",
+      results: [ringOk, orderOk]
+    });
+    assert.equal(p.recipient.name, "Thabo");
+    assert.equal(p.recipient.role, "neighbour");
+    assert.equal(p.action, "notify_handoff");
+    assert.equal(p.status, "draft");
+    assert.equal(p.sampleRef, "GUEST-10421");
+    assert.ok(p.planId.startsWith("plan_"));
+    assert.ok(Array.isArray(p.observations) && p.observations.length);
+    assert.ok(Array.isArray(p.assumptions) && p.assumptions.length);
+    assert.ok(p.timing && p.timing.timezone === "Africa/Johannesburg");
+  });
+
+  it("never claims visitor identity from order ETA alone", () => {
+    assert.equal(OpsPlanner.canClaimVisitorIdentity([orderOk]), false);
+    const p = OpsPlanner.buildProposal({ storyId: "doorstep", results: [orderOk] });
+    assert.equal(p.identityClaim, "no_confident_visitor_identity");
+    assert.ok(
+      p.assumptions.some((a) => /order ETA alone|not verified/i.test(a)) ||
+        /not enough|ETA|identity/i.test(p.explanation)
+    );
+  });
+
+  it("replan on neighbour unavailable changes recipient", () => {
+    const first = OpsPlanner.buildProposal({
+      storyId: "doorstep",
+      results: [ringOk, orderOk]
+    });
+    assert.equal(first.recipient.name, "Thabo");
+    const { superseded, proposal } = OpsPlanner.replan({
+      storyId: "doorstep",
+      results: [ringOk, orderOk],
+      priorProposal: first,
+      facts: { neighbourAvailable: false }
+    });
+    assert.equal(superseded.status, "superseded");
+    assert.equal(superseded.planId, first.planId);
+    assert.notEqual(proposal.planId, first.planId);
+    assert.equal(proposal.recipient.name, "Mira");
+    assert.equal(proposal.recipient.role, "parent");
+    assert.notEqual(proposal.action, first.action);
+    assert.ok(/unavailable|Mira|shifts/i.test(proposal.explanation));
+  });
+});
+
+describe("OpsState — phases, switch, resume, approval", () => {
+  let OpsState, OpsPlanner, OPS_SCENARIOS;
+
+  beforeEach(() => {
+    ({ OpsState, OpsPlanner, OPS_SCENARIOS } = loadScripts());
+    OpsPlanner._resetSeq(0);
+  });
+
+  function doorstepResults() {
+    return [
+      {
+        ok: true,
+        source: "mock",
+        operationId: "op_1",
+        tool: "ring.query",
+        observations: { summary: "ring motion at front door", parcel: true },
+        outcome: {},
+        error: null,
+        meta: "ring motion"
+      },
+      {
+        ok: true,
+        source: "mock",
+        operationId: "op_2",
+        tool: "order.lookup",
+        observations: { summary: "AMZL stop nearby", eta: "18:00" },
+        outcome: {},
+        error: null,
+        meta: "AMZL"
+      }
+    ];
+  }
+
+  it("clones fixtures without mutating seeds", () => {
+    const store = OpsState.createStore({ scenarios: OPS_SCENARIOS });
+    const seedTitle = OPS_SCENARIOS.doorstep.window.proposed;
+    store.startStory("doorstep");
+    store.mutateFixture((f) => {
+      f.window.proposed = "MUTATED WINDOW";
+      f._backup = true;
+    });
+    store.setBackupChoice({ plan: "alt" });
+    assert.equal(OPS_SCENARIOS.doorstep.window.proposed, seedTitle);
+    assert.equal(store.getFixture().window.proposed, "MUTATED WINDOW");
+    store.resetFresh("doorstep");
+    assert.equal(store.getFixture().window.proposed, seedTitle);
+    assert.equal(store.getBackupChoice(), null);
+    assert.equal(OPS_SCENARIOS.doorstep.window.proposed, seedTitle);
+  });
+
+  it("switch doorstep↔bedtime preserves sessions without seed leak", () => {
+    const store = OpsState.createStore({ scenarios: OPS_SCENARIOS });
+    store.startStory("doorstep");
+    const p1 = OpsPlanner.buildProposal({
+      storyId: "doorstep",
+      results: doorstepResults()
+    });
+    store.setProposal(p1);
+    store.setBackupChoice({ recipient: "Thabo-alt" });
+    store.mutateFixture((f) => {
+      f.window.alt = "SESSION-ONLY ALT";
+    });
+
+    store.switchStory("bedtime");
+    store.startStory("bedtime");
+    assert.equal(store.getActive(), "bedtime");
+    assert.equal(store.getPhase(), "inspecting");
+    assert.equal(store.getBackupChoice(), null);
+
+    store.switchStory("doorstep");
+    assert.equal(store.getActive(), "doorstep");
+    assert.equal(store.getPhase(), "proposed");
+    assert.equal(store.getProposal().planId, p1.planId);
+    assert.deepEqual(store.getBackupChoice(), { recipient: "Thabo-alt" });
+    assert.equal(store.getFixture().window.alt, "SESSION-ONLY ALT");
+    assert.notEqual(OPS_SCENARIOS.doorstep.window.alt, "SESSION-ONLY ALT");
+  });
+
+  it("resume save/load/clear for ops-demo-v1", () => {
+    const mem = {
+      getItem() {
+        return this._v || null;
+      },
+      setItem(k, v) {
+        this._v = String(v);
+      },
+      removeItem() {
+        this._v = null;
+      }
+    };
+    const store = OpsState.createStore({ scenarios: OPS_SCENARIOS, storage: mem });
+    store.startStory("doorstep");
+    const p = OpsPlanner.buildProposal({ storyId: "doorstep", results: doorstepResults() });
+    store.setProposal(p);
+    const saved = store.save();
+    assert.equal(saved.ok, true);
+    assert.equal(store.STORAGE_KEY, "ops-demo-v1");
+    assert.ok(mem._v.indexOf('"v":1') !== -1);
+
+    const store2 = OpsState.createStore({ scenarios: OPS_SCENARIOS, storage: mem });
+    const loaded = store2.load();
+    assert.equal(loaded.ok, true);
+    assert.equal(store2.getActive(), "doorstep");
+    assert.equal(store2.getProposal().planId, p.planId);
+
+    store2.clear();
+    assert.equal(mem._v, null);
+    assert.equal(store2.getActive(), null);
+    assert.equal(store2.getPhase(), "idle");
+  });
+
+  it("rejects superseded approval; idempotent approve", () => {
+    const store = OpsState.createStore({ scenarios: OPS_SCENARIOS });
+    store.startStory("doorstep");
+    const first = OpsPlanner.buildProposal({
+      storyId: "doorstep",
+      results: doorstepResults()
+    });
+    store.setProposal(first);
+
+    const { superseded, proposal: second } = OpsPlanner.replan({
+      storyId: "doorstep",
+      results: doorstepResults(),
+      priorProposal: first,
+      facts: { neighbourAvailable: false }
+    });
+    store.supersede(second);
+    assert.equal(store.getPhase(), "proposed");
+    assert.equal(store.getProposal().recipient.name, "Mira");
+
+    const bad = store.approve(superseded.planId);
+    assert.equal(bad.ok, false);
+    assert.equal(bad.reason, "superseded");
+
+    const ok1 = store.approve();
+    assert.equal(ok1.ok, true);
+    assert.equal(ok1.idempotent, false);
+    assert.equal(store.getPhase(), "approved");
+    store.markActed({ ok: true, source: "mock", operationId: "op_act", tool: "notify.household", outcome: { queued: true }, error: null });
+    assert.equal(store.getPhase(), "acted");
+
+    const ok2 = store.approve(second.planId);
+    assert.equal(ok2.ok, true);
+    assert.equal(ok2.idempotent, true);
+  });
+
+  it("refuse sets refused phase without acting", () => {
+    const store = OpsState.createStore({ scenarios: OPS_SCENARIOS });
+    store.startStory("doorstep");
+    store.setProposal(
+      OpsPlanner.buildProposal({ storyId: "doorstep", results: doorstepResults() })
+    );
+    const r = store.refuse();
+    assert.equal(r.ok, true);
+    assert.equal(store.getPhase(), "refused");
+    assert.equal(store.getProposal().status, "refused");
+  });
+});
+
+describe("Intent+State integration — refuse vs approve path", () => {
+  it("decline utterance does not approve", () => {
+    const { OpsIntent, OpsState, OpsPlanner, OPS_SCENARIOS } = loadScripts();
+    OpsPlanner._resetSeq(0);
+    const store = OpsState.createStore({ scenarios: OPS_SCENARIOS });
+    store.startStory("doorstep");
+    store.setProposal(
+      OpsPlanner.buildProposal({
+        storyId: "doorstep",
+        results: [
+          {
+            ok: true,
+            source: "mock",
+            operationId: "op_x",
+            tool: "ring.query",
+            observations: { summary: "ring motion at front door — parcel" },
+            outcome: {},
+            error: null
+          }
+        ]
+      })
+    );
+    const intent = OpsIntent.classify("Don't make the guest code");
+    assert.equal(intent.intent, "decline");
+    if (intent.intent === "decline") store.refuse();
+    assert.equal(store.getPhase(), "refused");
+    assert.notEqual(store.getProposal().status, "confirmed");
+  });
+
+  it("approve utterance confirms current plan once", () => {
+    const { OpsIntent, OpsState, OpsPlanner, OPS_SCENARIOS } = loadScripts();
+    OpsPlanner._resetSeq(0);
+    const store = OpsState.createStore({ scenarios: OPS_SCENARIOS });
+    store.startStory("doorstep");
+    store.setProposal(
+      OpsPlanner.buildProposal({
+        storyId: "doorstep",
+        results: [
+          {
+            ok: true,
+            source: "mock",
+            operationId: "op_y",
+            tool: "ring.query",
+            observations: { summary: "ring motion + parcel" },
+            outcome: {},
+            error: null
+          }
+        ]
+      })
+    );
+    const intent = OpsIntent.classify("make the guest code");
+    assert.equal(intent.intent, "approve");
+    const a = store.approve();
+    assert.equal(a.ok, true);
+    assert.equal(store.getProposal().status, "confirmed");
+  });
+});

@@ -101,7 +101,7 @@
         Home helper demo · Amazon hackathon
       </p>
       <h1 class="hero-title">Your home’s helper, <span class="accent-word">step by step.</span></h1>
-      <p class="hero-sub">Doorstep handoff or bedtime stall — quiet hours matter either way. The helper connects the signals, then gives a guest code or a bedtime task.</p>
+      <p class="hero-sub">Doorstep handoff or bedtime stall — quiet hours matter either way. The helper connects the signals, then proposes a handoff plan or a bedtime task — you approve before anything is sent.</p>
     </section>
 
     <nav class="how-strip" id="howStrip" data-mode="idle" aria-label="How the helper works">
@@ -166,7 +166,7 @@
             <rect x="3.5" y="5.5" width="17" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
             <path d="M8 19.5h8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
-          <span><strong>Bedtime path</strong> — same weight as Doorstep · one tap (B)</span>
+          <span><strong>Bedtime path</strong> — Fire TV → Quiet → Task · one tap (B)</span>
         </p>
         <ol class="how-bed-steps" id="howBedSteps" role="list">
           <li class="how-bed-step" data-bed="firetv" aria-current="false">
@@ -268,7 +268,7 @@
         <div class="timeline" id="timeline" role="log" aria-live="polite" aria-relevant="additions"></div>
         <div class="session-strip" id="sessionBox" aria-live="polite">
           <span class="mono">Ready</span>
-          <span class="muted">No steps yet — Doorstep or Bedtime, same weight</span>
+          <span class="muted">No steps yet — try Doorstep or Bedtime</span>
         </div>
       </section>
     </main>
@@ -312,6 +312,9 @@
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="js/scenarios.js"></script>
+  <script src="js/session-state.js"></script>
+  <script src="js/planner.js"></script>
+  <script src="js/intent.js"></script>
   <script src="js/mcp-client.js"></script>
   <script src="js/app.js"></script>
 </body>

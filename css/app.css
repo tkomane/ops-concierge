@@ -2093,3 +2093,44 @@ html[data-theme="dark"] .overlay-lead { color: var(--muted); }
   line-height: 1.45;
 }
 
+
+
+/* 003 adaptive — proposal card prominence (minimal) */
+.proposal-card {
+  border-left: 3px solid var(--warn, #c47d12);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--warn, #c47d12) 25%, transparent);
+  order: -1;
+}
+.proposal-badge {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--warn, #c47d12);
+}
+.proposal-kv dt {
+  opacity: 0.75;
+}
+.proposal-kv dd strong {
+  font-size: 1.02rem;
+}
+.proposal-card .sample-ref {
+  font-size: 0.85rem;
+}
+.proposal-details {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+.proposal-details ul {
+  margin: 0.25rem 0 0 1.1rem;
+  padding: 0;
+}
+#cards {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+}
+#cards .proposal-card {
+  /* recipient/action/timing/status above sample ref — already in markup order */
+}

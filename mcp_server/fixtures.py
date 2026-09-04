@@ -35,7 +35,7 @@ FIXTURES: dict[str, dict[str, Any]] = {
         },
         "task": {
             "id": "GUEST-10421",
-            "title": "Guest instruction — claim Amazon parcel at front door (Ring-verified)",
+            "title": "Simulated handoff plan — claim Amazon parcel at front door (sample ref)",
         },
     },
     "bedtime": {
