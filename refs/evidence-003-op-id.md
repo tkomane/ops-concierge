@@ -1,6 +1,7 @@
 # Feature 003 P1 — stable operation ID correction — evidence pack
 
 **Base HEAD:** `03bc162a3582af07c15d1ee35822b9f58113db4f` (`03bc162`)  
+**Fix tip SHA:** `c6ac61f38c618b4c05a8984932e318d67e1ef240` (`c6ac61f`)
 **Timezone:** Africa/Johannesburg (SAST)  
 **Date:** 05 September 2026  
 
