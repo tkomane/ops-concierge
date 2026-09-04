@@ -1,0 +1,120 @@
+{
+  "reduced_motion": "PASS",
+  "print": "PASS",
+  "notes": [
+    {
+      "startCandidates": [
+        {
+          "id": "demoBtn2",
+          "text": "Bedtime story",
+          "cls": "btn btn-outline btn-with-icon"
+        },
+        {
+          "id": "demoBtn",
+          "text": "Doorstep story",
+          "cls": "btn btn-outline btn-with-icon"
+        },
+        {
+          "id": "",
+          "text": "Door\n          Someone\u2019s there",
+          "cls": "how-step"
+        },
+        {
+          "id": "",
+          "text": "Guest / Task\n          Either story",
+          "cls": "how-step"
+        },
+        {
+          "id": "coachStartDoorstep",
+          "text": "Start doorstep",
+          "cls": "btn btn-outline btn-sm"
+        },
+        {
+          "id": "coachStartBedtime",
+          "text": "Start bedtime",
+          "cls": "btn btn-outline btn-sm"
+        },
+        {
+          "id": "",
+          "text": "1Someone\u2019s at the door",
+          "cls": "chip"
+        },
+        {
+          "id": "",
+          "text": "2Start bedtime",
+          "cls": "chip"
+        },
+        {
+          "id": "",
+          "text": "Doorstep story",
+          "cls": "btn btn-outline"
+        },
+        {
+          "id": "",
+          "text": "Bedtime story",
+          "cls": "btn btn-outline"
+        },
+        {
+          "id": "",
+          "text": "Doorstep story",
+          "cls": "btn btn-outline"
+        },
+        {
+          "id": "",
+          "text": "Bedtime story",
+          "cls": "btn btn-outline"
+        }
+      ]
+    },
+    {
+      "clicked": "Doorstep story"
+    },
+    {
+      "phase_after_inspect": "proposed"
+    },
+    {
+      "phase_after_approve": "acted"
+    },
+    {
+      "printTicketCount": 1
+    },
+    "print via emulate_media + data-print-ticket (native dialog not invoked)"
+  ],
+  "reduced_motion_sample": [
+    {
+      "tag": "BUTTON",
+      "id": "demoBtn2",
+      "transition": "1e-05s",
+      "animation": "1e-05s"
+    },
+    {
+      "tag": "BUTTON",
+      "id": "demoBtn",
+      "transition": "1e-05s",
+      "animation": "1e-05s"
+    },
+    {
+      "tag": "BUTTON",
+      "id": "themeToggle",
+      "transition": "1e-05s",
+      "animation": "1e-05s"
+    },
+    {
+      "tag": "BUTTON",
+      "id": "helpBtn",
+      "transition": "1e-05s",
+      "animation": "1e-05s"
+    },
+    {
+      "tag": "BUTTON",
+      "id": "coachStartDoorstep",
+      "transition": "1e-05s",
+      "animation": "1e-05s"
+    }
+  ],
+  "print_sample": {
+    "headerDisplay": "grid",
+    "ticketVisible": false,
+    "printCssRules": 1
+  }
+}

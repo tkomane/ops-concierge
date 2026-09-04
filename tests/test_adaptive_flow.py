@@ -94,6 +94,9 @@ def test_app_binds_uncertain_retries_to_bridge_source():
     assert "notifyRequireBridge" in app
     assert "taskRequireBridge" in app
     assert 'disposition: "unknown"' in app or "disposition === \"unknown\"" in app
+    assert "responseOperationId" in app
+    assert "notify.operationId || notifyOpId" not in app
+    assert "opened.operationId || taskOpId" not in app
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")

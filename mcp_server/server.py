@@ -235,12 +235,18 @@ def create_server() -> MCPServer:
         try:
             result = dispatch(tool, arguments)
         except Exception as exc:  # noqa: BLE001 — bridge must not 500 on handler faults
+            requested_op = (
+                arguments.get("operationId")
+                if isinstance(arguments.get("operationId"), str)
+                else None
+            )
             return _cors(
                 _bridge_error(
                     code="bridge_failure",
                     message=f"Bridge failed while invoking tool: {exc}",
                     status=500,
                     tool=tool,
+                    operation_id=requested_op,
                 ),
                 request,
             )
@@ -267,12 +273,16 @@ def _bridge_error(
     message: str,
     status: int,
     tool: str | None = None,
+    operation_id: str | None = None,
 ) -> JSONResponse:
     """Structured bridge failure — distinct from client-side mock fallback."""
+    op = (operation_id or "").strip() if isinstance(operation_id, str) else ""
+    if not op:
+        op = _operation_id()
     body: dict[str, Any] = {
         "ok": False,
         "source": "bridge",
-        "operationId": _operation_id(),
+        "operationId": op,
         "error": {"code": code, "message": message},
         "meta": f"bridge:{code}",
         # Explicit label so UI never treats this as unlabelled mock success.
@@ -337,19 +347,23 @@ def _validate_argument_types(tool: str, arguments: dict[str, Any]) -> JSONRespon
     """Return a 4xx response when argument shapes would crash handlers (e.g. numeric zone)."""
     for key, value in arguments.items():
         if key in _STRING_ARGS and value is not None and not isinstance(value, str):
+            req_op = arguments.get("operationId") if isinstance(arguments.get("operationId"), str) else None
             return _bridge_error(
                 code="invalid_request",
                 message=f"Argument '{key}' must be a string, not {type(value).__name__}",
                 status=400,
                 tool=tool,
+                operation_id=req_op,
             )
 
     if tool == "session.ack" and "session_id" not in arguments:
+        req_op = arguments.get("operationId") if isinstance(arguments.get("operationId"), str) else None
         return _bridge_error(
             code="invalid_request",
             message="Missing required argument 'session_id' for tool 'session.ack'",
             status=400,
             tool=tool,
+            operation_id=req_op,
         )
 
     return None

@@ -8,6 +8,8 @@ import threading
 import time
 from typing import Iterator
 
+from unittest.mock import patch
+
 import pytest
 import uvicorn
 from mcp import Client
@@ -170,6 +172,29 @@ def test_demo_call_success_labelled_bridge(client: TestClient):
     assert data["detail"]["id"] == "GUEST-10421"
     assert data["error"] is None
     assert r.headers.get("access-control-allow-origin") == UI_ORIGIN
+
+
+def test_demo_call_handler_exception_echoes_request_operation_id(client: TestClient):
+    """HTTP 500 from a handler fault must keep the client's operation identity."""
+    from mcp_server import server
+
+    with patch.object(server, "dispatch", side_effect=RuntimeError("injected handler fault")):
+        r = client.post(
+            "/demo/call",
+            json={
+                "tool": "task.open",
+                "arguments": {"scenario": "doorstep", "operationId": "op_task_open_2"},
+            },
+            headers={"Origin": UI_ORIGIN},
+        )
+    assert r.status_code == 500
+    data = r.json()
+    assert data["ok"] is False
+    assert data["source"] == "bridge"
+    assert data["error"]["code"] == "bridge_failure"
+    assert data["operationId"] == "op_task_open_2"
+    assert data["failureKind"] == "bridge_failure"
+    assert data["fallback"] == "none"
 
 
 def test_demo_call_unknown_tool_404_labelled(client: TestClient):

@@ -1,0 +1,52 @@
+{
+  "method": "Actual production HTTP route through Starlette TestClient; dispatcher raises an injected exception; no socket listener",
+  "checkout": ".",
+  "results": [
+    {
+      "request": {
+        "tool": "notify.household",
+        "arguments": {
+          "scenario": "doorstep",
+          "operationId": "op_notify_household_1"
+        }
+      },
+      "status": 500,
+      "body": {
+        "ok": false,
+        "source": "bridge",
+        "operationId": "op_notify_household_1",
+        "error": {
+          "code": "bridge_failure",
+          "message": "Bridge failed while invoking tool: Review-injected handler exception"
+        },
+        "meta": "bridge:bridge_failure",
+        "fallback": "none",
+        "failureKind": "bridge_failure",
+        "tool": "notify.household"
+      }
+    },
+    {
+      "request": {
+        "tool": "task.open",
+        "arguments": {
+          "scenario": "doorstep",
+          "operationId": "op_task_open_2"
+        }
+      },
+      "status": 500,
+      "body": {
+        "ok": false,
+        "source": "bridge",
+        "operationId": "op_task_open_2",
+        "error": {
+          "code": "bridge_failure",
+          "message": "Bridge failed while invoking tool: Review-injected handler exception"
+        },
+        "meta": "bridge:bridge_failure",
+        "fallback": "none",
+        "failureKind": "bridge_failure",
+        "tool": "task.open"
+      }
+    }
+  ]
+}

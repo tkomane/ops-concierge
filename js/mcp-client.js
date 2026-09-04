@@ -136,7 +136,14 @@
       if (!res.ok) {
         /* Preserve structured JSON errors — never collapse HTTP 500 + body to null. */
         if (data && typeof data === "object") {
-          return normalizeBridgePayload(data, res.status);
+          var failed = normalizeBridgePayload(data, res.status);
+          if (requestOpId) {
+            if (failed.operationId && failed.operationId !== requestOpId) {
+              failed.responseOperationId = failed.operationId;
+            }
+            failed.operationId = requestOpId;
+          }
+          return failed;
         }
         cachedHealthy = false;
         return {
@@ -158,12 +165,22 @@
 
       var normalized = normalizeBridgePayload(data, res.status);
       if (!normalized.ok) {
+        if (requestOpId) {
+          if (normalized.operationId && normalized.operationId !== requestOpId) {
+            normalized.responseOperationId = normalized.operationId;
+          }
+          normalized.operationId = requestOpId;
+        }
         return normalized;
       }
       return {
         ok: true,
         source: normalized.source || "bridge",
-        operationId: normalized.operationId || requestOpId,
+        operationId: requestOpId || normalized.operationId,
+        responseOperationId:
+          requestOpId && normalized.operationId && normalized.operationId !== requestOpId
+            ? normalized.operationId
+            : undefined,
         tool: normalized.tool || name,
         observations: normalized.observations,
         outcome: normalized.outcome,

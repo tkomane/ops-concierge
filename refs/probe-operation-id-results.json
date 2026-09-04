@@ -1,0 +1,883 @@
+{
+  "checkout": ".",
+  "method": "Production client, runner, coordinator and store with injected fetch; structured error bodies captured from the actual HTTP route",
+  "failures": 0,
+  "cases": [
+    {
+      "tool": "notify.household",
+      "uncertainFirst": false,
+      "reload": false,
+      "calls": [
+        {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_notify_household_1"
+          }
+        },
+        {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_notify_household_1"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_task_open_2"
+          }
+        }
+      ],
+      "stages": [
+        {
+          "phase": "failed",
+          "counts": {
+            "notify": 0,
+            "task": 0
+          },
+          "progress": {
+            "notify": {
+              "status": "failed",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "failureKind": "bridge_failure",
+              "attempted": true,
+              "disposition": "failed"
+            }
+          }
+        },
+        {
+          "phase": "acted",
+          "counts": {
+            "notify": 1,
+            "task": 1
+          },
+          "progress": {
+            "notify": {
+              "status": "done",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "failureKind": "bridge_failure",
+              "attempted": true,
+              "disposition": "resolved"
+            },
+            "task": {
+              "status": "done",
+              "operationId": "op_task_open_2",
+              "source": "bridge",
+              "disposition": "resolved"
+            }
+          }
+        }
+      ],
+      "operationIds": [
+        "op_notify_household_1",
+        "op_notify_household_1"
+      ],
+      "stableOperationId": true
+    },
+    {
+      "tool": "notify.household",
+      "uncertainFirst": false,
+      "reload": true,
+      "calls": [
+        {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_notify_household_1"
+          }
+        },
+        {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_notify_household_1"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_task_open_2"
+          }
+        }
+      ],
+      "stages": [
+        {
+          "phase": "failed",
+          "counts": {
+            "notify": 0,
+            "task": 0
+          },
+          "progress": {
+            "notify": {
+              "status": "failed",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "failureKind": "bridge_failure",
+              "attempted": true,
+              "disposition": "failed"
+            }
+          }
+        },
+        {
+          "phase": "acted",
+          "counts": {
+            "notify": 1,
+            "task": 1
+          },
+          "progress": {
+            "notify": {
+              "status": "done",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "failureKind": "bridge_failure",
+              "attempted": true,
+              "disposition": "resolved"
+            },
+            "task": {
+              "status": "done",
+              "operationId": "op_task_open_2",
+              "source": "bridge",
+              "disposition": "resolved"
+            }
+          }
+        }
+      ],
+      "operationIds": [
+        "op_notify_household_1",
+        "op_notify_household_1"
+      ],
+      "stableOperationId": true
+    },
+    {
+      "tool": "notify.household",
+      "uncertainFirst": true,
+      "reload": false,
+      "calls": [
+        {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_notify_household_1"
+          }
+        },
+        {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_notify_household_1"
+          }
+        },
+        {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_notify_household_1"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_task_open_2"
+          }
+        }
+      ],
+      "stages": [
+        {
+          "phase": "failed",
+          "counts": {
+            "notify": 0,
+            "task": 0
+          },
+          "progress": {
+            "notify": {
+              "status": "failed",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "failureKind": "unknown_after_dispatch",
+              "attempted": true,
+              "disposition": "unknown"
+            }
+          }
+        },
+        {
+          "phase": "failed",
+          "counts": {
+            "notify": 0,
+            "task": 0
+          },
+          "progress": {
+            "notify": {
+              "status": "failed",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "failureKind": "unknown_after_dispatch",
+              "attempted": true,
+              "disposition": "unknown"
+            }
+          }
+        },
+        {
+          "phase": "acted",
+          "counts": {
+            "notify": 1,
+            "task": 1
+          },
+          "progress": {
+            "notify": {
+              "status": "done",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "failureKind": "unknown_after_dispatch",
+              "attempted": true,
+              "disposition": "resolved"
+            },
+            "task": {
+              "status": "done",
+              "operationId": "op_task_open_2",
+              "source": "bridge",
+              "disposition": "resolved"
+            }
+          }
+        }
+      ],
+      "operationIds": [
+        "op_notify_household_1",
+        "op_notify_household_1",
+        "op_notify_household_1"
+      ],
+      "stableOperationId": true
+    },
+    {
+      "tool": "notify.household",
+      "uncertainFirst": true,
+      "reload": true,
+      "calls": [
+        {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_notify_household_1"
+          }
+        },
+        {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_notify_household_1"
+          }
+        },
+        {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_notify_household_1"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_task_open_2"
+          }
+        }
+      ],
+      "stages": [
+        {
+          "phase": "failed",
+          "counts": {
+            "notify": 0,
+            "task": 0
+          },
+          "progress": {
+            "notify": {
+              "status": "failed",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "failureKind": "unknown_after_dispatch",
+              "attempted": true,
+              "disposition": "unknown"
+            }
+          }
+        },
+        {
+          "phase": "failed",
+          "counts": {
+            "notify": 0,
+            "task": 0
+          },
+          "progress": {
+            "notify": {
+              "status": "failed",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "failureKind": "unknown_after_dispatch",
+              "attempted": true,
+              "disposition": "unknown"
+            }
+          }
+        },
+        {
+          "phase": "acted",
+          "counts": {
+            "notify": 1,
+            "task": 1
+          },
+          "progress": {
+            "notify": {
+              "status": "done",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "failureKind": "unknown_after_dispatch",
+              "attempted": true,
+              "disposition": "resolved"
+            },
+            "task": {
+              "status": "done",
+              "operationId": "op_task_open_2",
+              "source": "bridge",
+              "disposition": "resolved"
+            }
+          }
+        }
+      ],
+      "operationIds": [
+        "op_notify_household_1",
+        "op_notify_household_1",
+        "op_notify_household_1"
+      ],
+      "stableOperationId": true
+    },
+    {
+      "tool": "task.open",
+      "uncertainFirst": false,
+      "reload": false,
+      "calls": [
+        {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_notify_household_1"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_task_open_2"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_task_open_2"
+          }
+        }
+      ],
+      "stages": [
+        {
+          "phase": "failed",
+          "counts": {
+            "notify": 1,
+            "task": 0
+          },
+          "progress": {
+            "notify": {
+              "status": "done",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "disposition": "resolved"
+            },
+            "task": {
+              "status": "failed",
+              "operationId": "op_task_open_2",
+              "source": "bridge",
+              "failureKind": "bridge_failure",
+              "attempted": true,
+              "disposition": "failed"
+            }
+          }
+        },
+        {
+          "phase": "acted",
+          "counts": {
+            "notify": 1,
+            "task": 1
+          },
+          "progress": {
+            "notify": {
+              "status": "done",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "disposition": "resolved"
+            },
+            "task": {
+              "status": "done",
+              "operationId": "op_task_open_2",
+              "source": "bridge",
+              "failureKind": "bridge_failure",
+              "attempted": true,
+              "disposition": "resolved"
+            }
+          }
+        }
+      ],
+      "operationIds": [
+        "op_task_open_2",
+        "op_task_open_2"
+      ],
+      "stableOperationId": true
+    },
+    {
+      "tool": "task.open",
+      "uncertainFirst": false,
+      "reload": true,
+      "calls": [
+        {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_notify_household_1"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_task_open_2"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_task_open_2"
+          }
+        }
+      ],
+      "stages": [
+        {
+          "phase": "failed",
+          "counts": {
+            "notify": 1,
+            "task": 0
+          },
+          "progress": {
+            "notify": {
+              "status": "done",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "disposition": "resolved"
+            },
+            "task": {
+              "status": "failed",
+              "operationId": "op_task_open_2",
+              "source": "bridge",
+              "failureKind": "bridge_failure",
+              "attempted": true,
+              "disposition": "failed"
+            }
+          }
+        },
+        {
+          "phase": "acted",
+          "counts": {
+            "notify": 1,
+            "task": 1
+          },
+          "progress": {
+            "notify": {
+              "status": "done",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "disposition": "resolved"
+            },
+            "task": {
+              "status": "done",
+              "operationId": "op_task_open_2",
+              "source": "bridge",
+              "failureKind": "bridge_failure",
+              "attempted": true,
+              "disposition": "resolved"
+            }
+          }
+        }
+      ],
+      "operationIds": [
+        "op_task_open_2",
+        "op_task_open_2"
+      ],
+      "stableOperationId": true
+    },
+    {
+      "tool": "task.open",
+      "uncertainFirst": true,
+      "reload": false,
+      "calls": [
+        {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_notify_household_1"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_task_open_2"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_task_open_2"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_task_open_2"
+          }
+        }
+      ],
+      "stages": [
+        {
+          "phase": "failed",
+          "counts": {
+            "notify": 1,
+            "task": 0
+          },
+          "progress": {
+            "notify": {
+              "status": "done",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "disposition": "resolved"
+            },
+            "task": {
+              "status": "failed",
+              "operationId": "op_task_open_2",
+              "source": "bridge",
+              "failureKind": "unknown_after_dispatch",
+              "attempted": true,
+              "disposition": "unknown"
+            }
+          }
+        },
+        {
+          "phase": "failed",
+          "counts": {
+            "notify": 1,
+            "task": 0
+          },
+          "progress": {
+            "notify": {
+              "status": "done",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "disposition": "resolved"
+            },
+            "task": {
+              "status": "failed",
+              "operationId": "op_task_open_2",
+              "source": "bridge",
+              "failureKind": "unknown_after_dispatch",
+              "attempted": true,
+              "disposition": "unknown"
+            }
+          }
+        },
+        {
+          "phase": "acted",
+          "counts": {
+            "notify": 1,
+            "task": 1
+          },
+          "progress": {
+            "notify": {
+              "status": "done",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "disposition": "resolved"
+            },
+            "task": {
+              "status": "done",
+              "operationId": "op_task_open_2",
+              "source": "bridge",
+              "failureKind": "unknown_after_dispatch",
+              "attempted": true,
+              "disposition": "resolved"
+            }
+          }
+        }
+      ],
+      "operationIds": [
+        "op_task_open_2",
+        "op_task_open_2",
+        "op_task_open_2"
+      ],
+      "stableOperationId": true
+    },
+    {
+      "tool": "task.open",
+      "uncertainFirst": true,
+      "reload": true,
+      "calls": [
+        {
+          "tool": "notify.household",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_notify_household_1"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_task_open_2"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_task_open_2"
+          }
+        },
+        {
+          "tool": "task.open",
+          "arguments": {
+            "scenario": "doorstep",
+            "planId": "plan_1",
+            "recipient": "Mira",
+            "recipientRole": "parent",
+            "action": "defer_handoff_parent",
+            "timing": "Parent claim window today 18:20–18:45 SAST",
+            "operationId": "op_task_open_2"
+          }
+        }
+      ],
+      "stages": [
+        {
+          "phase": "failed",
+          "counts": {
+            "notify": 1,
+            "task": 0
+          },
+          "progress": {
+            "notify": {
+              "status": "done",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "disposition": "resolved"
+            },
+            "task": {
+              "status": "failed",
+              "operationId": "op_task_open_2",
+              "source": "bridge",
+              "failureKind": "unknown_after_dispatch",
+              "attempted": true,
+              "disposition": "unknown"
+            }
+          }
+        },
+        {
+          "phase": "failed",
+          "counts": {
+            "notify": 1,
+            "task": 0
+          },
+          "progress": {
+            "notify": {
+              "status": "done",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "disposition": "resolved"
+            },
+            "task": {
+              "status": "failed",
+              "operationId": "op_task_open_2",
+              "source": "bridge",
+              "failureKind": "unknown_after_dispatch",
+              "attempted": true,
+              "disposition": "unknown"
+            }
+          }
+        },
+        {
+          "phase": "acted",
+          "counts": {
+            "notify": 1,
+            "task": 1
+          },
+          "progress": {
+            "notify": {
+              "status": "done",
+              "operationId": "op_notify_household_1",
+              "source": "bridge",
+              "disposition": "resolved"
+            },
+            "task": {
+              "status": "done",
+              "operationId": "op_task_open_2",
+              "source": "bridge",
+              "failureKind": "unknown_after_dispatch",
+              "attempted": true,
+              "disposition": "resolved"
+            }
+          }
+        }
+      ],
+      "operationIds": [
+        "op_task_open_2",
+        "op_task_open_2",
+        "op_task_open_2"
+      ],
+      "stableOperationId": true
+    }
+  ]
+}

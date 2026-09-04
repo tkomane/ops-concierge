@@ -275,7 +275,7 @@
             "recipientRole": "parent",
             "action": "defer_handoff_parent",
             "timing": "Parent claim window today 18:20–18:45 SAST",
-            "operationId": "failed_task"
+            "operationId": "op_task_open_2"
           }
         }
       ],
@@ -411,7 +411,7 @@
             "recipientRole": "parent",
             "action": "defer_handoff_parent",
             "timing": "Parent claim window today 18:20–18:45 SAST",
-            "operationId": "failed_task"
+            "operationId": "op_task_open_2"
           }
         }
       ],
@@ -764,7 +764,7 @@
         "response": {
           "ok": true,
           "source": "bridge",
-          "operationId": "op_970521411c8d",
+          "operationId": "op_0be99002b02b",
           "tool": "ring.query",
           "meta": "HIT ring-front-door / zone: stoop",
           "detail": {
@@ -814,7 +814,7 @@
         "response": {
           "ok": true,
           "source": "bridge",
-          "operationId": "op_aea8f8703172",
+          "operationId": "op_6b104bb2534b",
           "tool": "order.lookup",
           "meta": "HIT order 702-8842101-4419284 / ship: AMZL",
           "detail": {
@@ -865,7 +865,7 @@
         "response": {
           "ok": true,
           "source": "bridge",
-          "operationId": "op_13831b5af70e",
+          "operationId": "op_5e376b48d966",
           "tool": "session.ack",
           "meta": "ACK GUEST-10421 (review-session)",
           "detail": {
@@ -907,7 +907,7 @@
         "response": {
           "ok": true,
           "source": "bridge",
-          "operationId": "op_5505b172f305",
+          "operationId": "op_8e21d8f334f7",
           "tool": "calendar.propose",
           "meta": "Secure handoff window today 18:20–18:45 SAST",
           "detail": {
@@ -1083,7 +1083,8 @@
       {
         "ok": true,
         "source": "bridge",
-        "operationId": "op_970521411c8d",
+        "operationId": "op_ring_query_1",
+        "responseOperationId": "op_0be99002b02b",
         "tool": "ring.query",
         "observations": {
           "motion": true,
@@ -1110,7 +1111,8 @@
       {
         "ok": true,
         "source": "bridge",
-        "operationId": "op_aea8f8703172",
+        "operationId": "op_order_lookup_2",
+        "responseOperationId": "op_6b104bb2534b",
         "tool": "order.lookup",
         "observations": {
           "eta": "16:00–18:00 SAST",
@@ -1137,7 +1139,8 @@
       {
         "ok": true,
         "source": "bridge",
-        "operationId": "op_13831b5af70e",
+        "operationId": "op_session_ack_3",
+        "responseOperationId": "op_5e376b48d966",
         "tool": "session.ack",
         "observations": {
           "summary": "ACK GUEST-10421 (review-session)",
@@ -1159,7 +1162,8 @@
       {
         "ok": true,
         "source": "bridge",
-        "operationId": "op_5505b172f305",
+        "operationId": "op_calendar_propose_4",
+        "responseOperationId": "op_8e21d8f334f7",
         "tool": "calendar.propose",
         "observations": {
           "proposed": "Secure handoff window today 18:20–18:45 SAST",

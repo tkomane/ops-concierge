@@ -141,6 +141,15 @@
   function operationProgressFields(status, operationId, result, prior) {
     var patch = { status: status, operationId: operationId };
     prior = prior || null;
+    /* Client-dispatched operationId stays immutable; keep any other response id as diagnostic only. */
+    if (result && typeof result === "object") {
+      var responseId = result.responseOperationId || result.operationId || null;
+      if (responseId && responseId !== operationId) {
+        patch.responseOperationId = responseId;
+      }
+    } else if (prior && prior.responseOperationId && status !== "done") {
+      patch.responseOperationId = prior.responseOperationId;
+    }
     if (!result || typeof result !== "object") {
       if (prior && prior.disposition === "unknown" && status !== "done") {
         patch.disposition = "unknown";
@@ -902,7 +911,11 @@
           const fail = {
             ok: false,
             source: live.source || "bridge",
-            operationId: live.operationId || opId,
+            operationId: opId,
+            responseOperationId:
+              live.operationId && live.operationId !== opId
+                ? live.operationId
+                : live.responseOperationId || undefined,
             tool: name,
             observations: null,
             outcome: null,
@@ -919,7 +932,11 @@
           const result = {
             ok: true,
             source: live.source || "bridge",
-            operationId: live.operationId || opId,
+            operationId: opId,
+            responseOperationId:
+              live.operationId && live.operationId !== opId
+                ? live.operationId
+                : live.responseOperationId || undefined,
             tool: name,
             observations: live.observations || (live.detail && live.detail.observations) || { summary: live.meta },
             outcome: live.outcome || live.detail || {},
@@ -2017,7 +2034,7 @@
               "notify",
               operationProgressFields(
                 "failed",
-                notify.operationId || notifyOpId,
+                notifyOpId,
                 notify,
                 progress.notify
               )
@@ -2046,7 +2063,7 @@
           store.setOperationProgress(
             planId,
             "notify",
-            operationProgressFields("done", notify.operationId || notifyOpId, notify, progress.notify)
+            operationProgressFields("done", notifyOpId, notify, progress.notify)
           );
         }
       }
@@ -2096,7 +2113,7 @@
               "task",
               operationProgressFields(
                 "failed",
-                opened.operationId || taskOpId,
+                taskOpId,
                 opened,
                 progress.task
               )
@@ -2124,7 +2141,7 @@
           store.setOperationProgress(
             planId,
             "task",
-            operationProgressFields("done", opened.operationId || taskOpId, opened, progress.task)
+            operationProgressFields("done", taskOpId, opened, progress.task)
           );
         }
       }

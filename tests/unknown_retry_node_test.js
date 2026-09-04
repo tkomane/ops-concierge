@@ -227,6 +227,9 @@ describe("uncertain bridge retry must not mock-resolve", () => {
     const c = context(fetchImpl);
     await c.handleApprove("approve", { intent: "approve" });
     assert.equal(c.state.phase, "failed");
+    const failedProg = c.store.getOperationProgress(c.state.proposal.planId);
+    assert.equal(failedProg.task.operationId, "op_task_open_2");
+    assert.equal(failedProg.task.responseOperationId, "failed_task");
     await c.handleApprove("approve", { intent: "approve" });
     assert.equal(c.state.phase, "acted");
     assert.deepEqual(c.store.getActionCounts(), { notify: 1, task: 1 });
@@ -234,5 +237,107 @@ describe("uncertain bridge retry must not mock-resolve", () => {
       calls.map((r) => r.tool),
       ["notify.household", "task.open", "task.open"]
     );
+    assert.deepEqual(
+      calls.filter((r) => r.tool === "task.open").map((r) => r.arguments.operationId),
+      ["op_task_open_2", "op_task_open_2"]
+    );
   });
 });
+
+async function stableIdSequence(tool, uncertainFirst, reload) {
+  const calls = [];
+  let attempts = 0;
+  const fetchImpl = async (url, init) => {
+    if (url.endsWith("/healthz")) return response({ ok: true });
+    const request = JSON.parse(init.body);
+    calls.push(request);
+    if (request.tool === tool) {
+      attempts += 1;
+      if (uncertainFirst && attempts === 1) {
+        throw new TypeError("Response lost after dispatch");
+      }
+      if (attempts === (uncertainFirst ? 2 : 1)) {
+        return response(
+          {
+            ok: false,
+            source: "bridge",
+            tool: request.tool,
+            operationId: tool === "task.open" ? "failed_task" : "failed_notify",
+            error: { code: "bridge_failure", message: "Injected structured 500" },
+            meta: "bridge:bridge_failure",
+            failureKind: "bridge_failure",
+            fallback: "none"
+          },
+          500
+        );
+      }
+    }
+    return response(
+      success(
+        request.tool,
+        request.tool === "task.open" ? { id: "GUEST-10421", status: "draft" } : { queued: true }
+      )
+    );
+  };
+  let c = context(fetchImpl);
+  const stages = [];
+  const expected =
+    tool === "task.open" ? "op_task_open_2" : "op_notify_household_1";
+  for (let stage = 0; stage < (uncertainFirst ? 3 : 2); stage++) {
+    if (stage > 0 && reload) {
+      c = context(fetchImpl, { ...c.reviewMemory });
+      assert.equal(c.store.load().ok, true);
+      c.hydrateUiFromSession(c.store.getSession());
+    }
+    if (stage > 0) await c.OpsMcpClient.probeHealth(true);
+    await c.handleApprove("approve", { intent: "approve" });
+    const progress = c.store.getOperationProgress(c.state.proposal.planId);
+    const entry = tool === "task.open" ? progress.task : progress.notify;
+    stages.push({
+      phase: c.state.phase,
+      counts: c.store.getActionCounts(),
+      operationId: entry && entry.operationId,
+      responseOperationId: entry && entry.responseOperationId,
+      disposition: entry && entry.disposition,
+      status: entry && entry.status
+    });
+  }
+  const operationIds = calls.filter((x) => x.tool === tool).map((x) => x.arguments.operationId);
+  return { tool, uncertainFirst, reload, expected, operationIds, stages, calls, phase: c.state.phase, counts: c.store.getActionCounts() };
+}
+
+describe("stable client operation identity across structured 500s", () => {
+  for (const tool of ["notify.household", "task.open"]) {
+    for (const uncertainFirst of [false, true]) {
+      for (const reload of [false, true]) {
+        const label =
+          tool +
+          (uncertainFirst ? " unknown→500→success" : " 500→success") +
+          (reload ? " after reload" : " immediate");
+        it(label, async () => {
+          const out = await stableIdSequence(tool, uncertainFirst, reload);
+          assert.equal(out.phase, "acted");
+          assert.deepEqual(out.counts, { notify: 1, task: 1 });
+          assert.equal(new Set(out.operationIds).size, 1);
+          assert.equal(out.operationIds[0], out.expected);
+          for (const stage of out.stages) {
+            assert.equal(stage.operationId, out.expected);
+          }
+          const failedStages = out.stages.filter((s) => s.status === "failed");
+          assert.ok(failedStages.length >= 1);
+          const structuredFail = failedStages[failedStages.length - 1];
+          assert.equal(
+            structuredFail.responseOperationId,
+            tool === "task.open" ? "failed_task" : "failed_notify"
+          );
+          if (uncertainFirst) {
+            assert.equal(structuredFail.disposition, "unknown");
+            assert.equal(failedStages[0].disposition, "unknown");
+            assert.equal(failedStages[0].operationId, out.expected);
+          }
+        });
+      }
+    }
+  }
+});
+
