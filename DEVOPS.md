@@ -8,7 +8,7 @@ Intended public URL:
 
 ### Enablement
 
-The deploy workflow sets `enablement: true` on `actions/configure-pages`, so the first successful run can turn on Pages with **GitHub Actions** as the source. If your org blocks that API, do it once manually:
+Pages Source must be **GitHub Actions** (one-time in repo Settings → Pages). Auto-enable via the Actions token is blocked on this repo (`Resource not accessible by integration`), so keep that manual setting. Then:
 
 1. Open the GitHub repo **Settings → Pages**.
 2. Under **Build and deployment → Source**, choose **GitHub Actions** (not “Deploy from a branch”).
