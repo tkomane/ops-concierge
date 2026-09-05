@@ -1,8 +1,7 @@
-# GitHub Pages deploy (static site from repo root).
+# GitHub Pages deploy — static demo only.
 #
-# ONE-TIME SETUP (repo owner): Settings → Pages → Source: GitHub Actions
-# After that, every push to main publishes to:
-#   https://tkomane.github.io/ops-concierge/
+# Publishes https://tkomane.github.io/ops-concierge/
+# `enablement: true` turns on Pages (GitHub Actions source) if not already set.
 #
 name: Deploy GitHub Pages
 
@@ -31,13 +30,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Build static site
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site/css _site/js
+          cp index.html robots.txt favicon.svg icon-192.svg icon-maskable.svg manifest.webmanifest _site/
+          # _headers is Cloudflare-oriented; harmless on Pages if present
+          if [ -f _headers ]; then cp _headers _site/; fi
+          cp css/*.css _site/css/
+          cp js/*.js _site/js/
+          # Ensure GitHub Pages does not run Jekyll on the artifact
+          touch _site/.nojekyll
+          echo "Static site contents:"
+          find _site -type f | sort
+          test -f _site/index.html
+          test -f _site/css/app.css
+          test -f _site/js/app.js
+          test -f _site/js/theme.js
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
-      - name: Upload artifact (static root)
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
 
       - name: Deploy to GitHub Pages
         id: deployment

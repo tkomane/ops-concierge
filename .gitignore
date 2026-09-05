@@ -29,3 +29,4 @@ demo-video/narration/
 refs/xai-*.png
 refs/smoke-loop-*.py
 refs/capture-previews.py
+_site/

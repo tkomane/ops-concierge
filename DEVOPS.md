@@ -6,14 +6,16 @@ Intended public URL:
 
 **https://tkomane.github.io/ops-concierge/**
 
-### One-time enablement
+### Enablement
+
+The deploy workflow sets `enablement: true` on `actions/configure-pages`, so the first successful run can turn on Pages with **GitHub Actions** as the source. If your org blocks that API, do it once manually:
 
 1. Open the GitHub repo **Settings → Pages**.
 2. Under **Build and deployment → Source**, choose **GitHub Actions** (not “Deploy from a branch”).
-3. Push to `main` (or run the **Deploy GitHub Pages** workflow manually via Actions → workflow_dispatch).
+3. Push to `main` (or run **Deploy GitHub Pages** via Actions → workflow_dispatch).
 
-Workflow: [`.github/workflows/pages.yml`](../.github/workflows/pages.yml)  
-Uses `actions/upload-pages-artifact` + `actions/deploy-pages` from the **repository root** (static site, zero build).
+Workflow: [`.github/workflows/pages.yml`](.github/workflows/pages.yml)  
+Builds a lean `_site/` (HTML/CSS/JS/icons only — no `refs/`, Python, or evidence) then deploys with `upload-pages-artifact` + `deploy-pages`.
 
 ## CI
 
